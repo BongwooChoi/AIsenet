@@ -5,7 +5,9 @@ from youtube_transcript_api import YouTubeTranscriptApi
 import os
 
 # Streamlit 앱 설정
-st.set_page_config(page_title="AI YouTube 추천 및 요약", page_icon="🎥", layout="wide")
+st.set_page_config(page_title="AI YouTube 추천 및 요약", page_icon="📺", layout="wide")
+st.title("YAI YouTube 추천 및 요약")
+st.subheader("좌측 사이드바에서 검색 조건 입력 후 실행 버튼을 누르면 관련 영상을 추천해 드립니다.")
 
 # CSS를 사용하여 스크롤 가능한 컨테이너 스타일 정의
 st.markdown("""
