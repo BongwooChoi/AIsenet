@@ -11,6 +11,19 @@ import os
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI YouTube 추천 및 요약", page_icon="🎥", layout="wide")
 
+# CSS를 사용하여 스크롤 가능한 컨테이너 스타일 정의
+st.markdown("""
+<style>
+.scrollable-container {
+    height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 5px;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # API 키 설정
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
@@ -116,7 +129,8 @@ if keywords:
                     with st.spinner("영상을 요약하는 중..."):
                         summary = summarize_video(video_url)
                         st.subheader("영상 요약")
-                        st.write(summary)
+                        # 스크롤 가능한 컨테이너에 요약 내용 표시
+                        st.markdown(f'<div class="scrollable-container">{summary}</div>', unsafe_allow_html=True)
             st.divider()
     else:
         st.warning("검색 결과가 없습니다.")
