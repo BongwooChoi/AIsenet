@@ -1,0 +1,9 @@
+ffmpeg-python
+streamlit
+yt-dlp
+openai-whisper
+openai
+langchain
+langchain_community
+google-generativeai
+google-api-python-client
