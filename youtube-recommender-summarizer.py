@@ -88,9 +88,6 @@ with st.sidebar:
 order_dict = {"관련성": "relevance", "조회수": "viewCount", "날짜": "date"}
 duration_dict = {"모두": None, "짧은 동영상 (< 5분)": "short", "중간 길이 동영상 (5~20분)": "medium", "긴 동영상 (> 20분)": "long"}
 
-# 메인 화면을 두 개의 칼럼으로 나누기
-col1, col2 = st.columns([3, 2])
-
 # 검색 결과 저장용 세션 상태
 if 'search_results' not in st.session_state:
     st.session_state.search_results = []
@@ -109,10 +106,12 @@ if search_button:
         st.warning("키워드를 입력해주세요.")
 
 # 검색 결과 표시
-with col1:
-    st.subheader("검색 결과")
-    for video in st.session_state.search_results:
+st.subheader("검색 결과")
+for video in st.session_state.search_results:
+    col1, col2 = st.columns([1, 2])
+    with col1:
         st.image(video['snippet']['thumbnails']['medium']['url'], use_column_width=True)
+    with col2:
         st.subheader(video['snippet']['title'])
         st.write(video['snippet']['description'])
         recommendation = get_ai_recommendation(video['snippet']['title'], video['snippet']['description'])
@@ -124,15 +123,14 @@ with col1:
             with st.spinner("영상을 요약하는 중..."):
                 summary = summarize_video(video['id']['videoId'])
                 st.session_state.summary = summary
-        st.divider()
+    st.divider()
 
 # 요약 결과 표시
-with col2:
-    st.subheader("영상 요약")
-    if st.session_state.summary:
-        st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
-    else:
-        st.write("영상을 선택하고 요약하기 버튼을 클릭하세요.")
+st.subheader("영상 요약")
+if st.session_state.summary:
+    st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
+else:
+    st.write("영상을 선택하고 요약하기 버튼을 클릭하세요.")
 
 # 주의사항 및 안내
 st.sidebar.markdown("---")
