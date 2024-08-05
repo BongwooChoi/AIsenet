@@ -69,12 +69,74 @@ def summarize_video(video_id):
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
 
-# Streamlit 앱 UI 코드 (이전과 동일)
-# ...
+# Streamlit 앱
+st.title("🎥 AI YouTube 영상 추천 및 요약")
+
+# 사이드바에 검색 조건 배치
+with st.sidebar:
+    st.header("검색 조건")
+    keyword1 = st.text_input("첫 번째 키워드", key="keyword1")
+    keyword2 = st.text_input("두 번째 키워드 (선택 사항)", key="keyword2")
+    keyword3 = st.text_input("세 번째 키워드 (선택 사항)", key="keyword3")
+
+    order = st.selectbox("정렬 기준", ["관련성", "조회수", "날짜"], index=0)
+    duration = st.selectbox("재생 시간 필터", ["모두", "짧은 동영상 (< 5분)", "중간 길이 동영상 (5~20분)", "긴 동영상 (> 20분)"], index=0)
+
+    search_button = st.button("검색 실행")
+
+# 매개변수 변환
+order_dict = {"관련성": "relevance", "조회수": "viewCount", "날짜": "date"}
+duration_dict = {"모두": None, "짧은 동영상 (< 5분)": "short", "중간 길이 동영상 (5~20분)": "medium", "긴 동영상 (> 20분)": "long"}
+
+# 메인 화면을 두 개의 칼럼으로 나누기
+col1, col2 = st.columns([3, 2])
+
+# 검색 결과 저장용 세션 상태
+if 'search_results' not in st.session_state:
+    st.session_state.search_results = []
+
+# 요약 결과 저장용 세션 상태
+if 'summary' not in st.session_state:
+    st.session_state.summary = ""
+
+# 검색 실행
+if search_button:
+    keywords = " ".join(filter(None, [keyword1, keyword2, keyword3]))
+    if keywords:
+        videos = search_videos(keywords, order=order_dict[order], duration=duration_dict[duration])
+        st.session_state.search_results = videos
+    else:
+        st.warning("키워드를 입력해주세요.")
+
+# 검색 결과 표시
+with col1:
+    st.subheader("검색 결과")
+    for video in st.session_state.search_results:
+        st.image(video['snippet']['thumbnails']['medium']['url'], use_column_width=True)
+        st.subheader(video['snippet']['title'])
+        st.write(video['snippet']['description'])
+        recommendation = get_ai_recommendation(video['snippet']['title'], video['snippet']['description'])
+        st.info("AI 추천 이유: " + recommendation)
+        video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
+        st.markdown(f"[영상 보기]({video_url})")
+        
+        if st.button(f"요약하기", key=f"summarize_{video['id']['videoId']}"):
+            with st.spinner("영상을 요약하는 중..."):
+                summary = summarize_video(video['id']['videoId'])
+                st.session_state.summary = summary
+        st.divider()
+
+# 요약 결과 표시
+with col2:
+    st.subheader("영상 요약")
+    if st.session_state.summary:
+        st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
+    else:
+        st.write("영상을 선택하고 요약하기 버튼을 클릭하세요.")
 
 # 주의사항 및 안내
 st.sidebar.markdown("---")
 st.sidebar.markdown("**안내사항:**")
-st.sidebar.markdown("- 이 서비스는 Google AI Studio API, YouTube Data API, YouTube Transcript API를 사용합니다.")
+st.sidebar.markdown("- 이 서비스는 Google AI Studio API와 YouTube Data API를 사용합니다.")
 st.sidebar.markdown("- 영상의 길이와 복잡도에 따라 처리 시간이 달라질 수 있습니다.")
 st.sidebar.markdown("- 저작권 보호를 위해 개인적인 용도로만 사용해주세요.")
