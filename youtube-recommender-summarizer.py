@@ -58,8 +58,8 @@ def summarize_video(youtube_url):
         result = model.transcribe("audio.mp3")
         transcription = result["text"]
 
-        # 3. 텍스트 요약 (GPT-4)
-        chat = ChatOpenAI(model_name="gpt-4-mini", temperature=0)
+        # 3. 텍스트 요약 (GPT-4o-mini)
+        chat = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
         messages = [
             SystemMessage(content="당신은 YouTube 영상을 시청하고 내용을 정리해서 알려주는 Assistant입니다."),
             HumanMessage(content=f"아래 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종결과는 한국어로 나와야 합니다.:\n\n{transcription}")
