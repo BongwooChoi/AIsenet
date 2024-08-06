@@ -61,52 +61,61 @@ def get_video_transcript(video_id):
         # 선택된 자막의 텍스트를 가져옵니다
         return ' '.join([entry['text'] for entry in transcript.fetch()])
     except Exception as e:
-        st.error(f"자막을 가져오는 중 오류 발생: {str(e)}")
+        st.warning(f"자막을 가져오는 중 오류 발생: {str(e)}")
         return None
 
-# 언어 감지 함수 추가
-def detect_language(text):
-    model = genai.GenerativeModel('gemini-pro')
-    prompt = f"다음 텍스트의 언어를 감지하세요. 'ko'는 한국어, 'en'은 영어를 의미합니다:\n\n{text[:100]}"
-    response = model.generate_content(prompt)
-    return response.text.strip().lower()
-
-# 번역 함수 추가
-def translate_to_korean(text):
-    model = genai.GenerativeModel('gemini-pro')
-    prompt = f"다음 텍스트를 한국어로 번역하세요:\n\n{text}"
-    response = model.generate_content(prompt)
-    return response.text
+# 영상 정보 가져오기 함수 수정
+def get_video_info(video_id):
+    try:
+        request = youtube.videos().list(
+            part="snippet,statistics",
+            id=video_id
+        )
+        response = request.execute()
+        video_info = response['items'][0]['snippet']
+        video_info['viewCount'] = response['items'][0]['statistics'].get('viewCount', 'N/A')
+        video_info['likeCount'] = response['items'][0]['statistics'].get('likeCount', 'N/A')
+        return video_info
+    except Exception as e:
+        st.error(f"영상 정보를 가져오는 중 오류 발생: {str(e)}")
+        return None
 
 # 영상 요약 함수 수정
 def summarize_video(video_id):
     try:
         transcript = get_video_transcript(video_id)
-        if not transcript:
-            video_info = get_video_info(video_id)
-            if not video_info:
-                return "영상 정보를 가져올 수 없습니다."
-            
-            # 자막이 없는 경우 제목과 설명을 사용하여 요약
-            content_to_summarize = f"제목: {video_info['title']}\n설명: {video_info['description']}"
-        else:
-            content_to_summarize = transcript
-
-        # 언어 감지
-        language = detect_language(content_to_summarize)
+        video_info = get_video_info(video_id)
         
-        # 영어인 경우 한국어로 번역
-        if language == 'en':
-            content_to_summarize = translate_to_korean(content_to_summarize)
-
+        if not video_info:
+            return "영상 정보를 가져올 수 없습니다."
+        
+        if transcript:
+            content_to_summarize = f"제목: {video_info['title']}\n설명: {video_info['description']}\n\n자막 내용: {transcript}"
+        else:
+            content_to_summarize = f"제목: {video_info['title']}\n설명: {video_info['description']}\n조회수: {video_info['viewCount']}\n좋아요 수: {video_info['likeCount']}"
+        
         model = genai.GenerativeModel('gemini-1.5-pro')
-        prompt = f"다음 YouTube 영상의 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n{content_to_summarize}"
+        prompt = f"""다음 YouTube 영상의 내용을 요약해주세요:
+
+        {content_to_summarize}
+
+        요약 지침:
+        1. 영상의 주요 주제와 핵심 포인트를 파악하여 간결하게 설명해주세요.
+        2. 자막이 없는 경우, 제목과 설명을 바탕으로 영상의 내용을 추론해주세요.
+        3. 조회수와 좋아요 수를 통해 영상의 인기도나 중요성을 언급해주세요.
+        4. 요약은 3-5문장으로 구성하여 주세요.
+        5. 마지막에는 이 영상이 어떤 사람들에게 유용할지 간단히 제안해주세요.
+
+        최종 결과는 한국어로 작성해주세요."""
+        
         response = model.generate_content(prompt)
         summary = response.text
 
         return summary
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
+
+
 # Streamlit 앱
 st.title("📺 AI YouTube 영상 추천 및 요약")
 st.markdown("이 서비스는 YouTube 영상을 검색하고 AI를 이용해 추천 이유와 요약을 제공합니다. 좌측 사이드바에 검색 조건을 입력하고 영상을 찾아보세요.")
@@ -158,13 +167,14 @@ for video in st.session_state.search_results:
         video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
         st.markdown(f"[영상 보기]({video_url})")
         
-    if st.button(f"내용 요약하기 (화면 하단에서 요약 결과를 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
+    if st.button(f"내용 요약하기", key=f"summarize_{video['id']['videoId']}"):
         with st.spinner("영상을 요약하는 중..."):
             summary = summarize_video(video['id']['videoId'])
-            if "오류" in summary:
+             if "오류" in summary:
                 st.error(summary)
             else:
-                st.session_state.summary = summary
+                st.success("요약이 완료되었습니다.")
+                st.markdown(summary)
     st.divider()
 
 # 요약 결과 표시
