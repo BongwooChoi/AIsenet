@@ -70,7 +70,7 @@ def summarize_video(video_id):
         return f"요약 중 오류가 발생했습니다: {str(e)}"
 
 # Streamlit 앱
-st.title("🎥 AI YouTube 영상 추천 및 요약")
+st.title("📺 AI YouTube 영상 추천 및 요약")
 st.markdown("이 서비스는 YouTube 영상을 검색하고 AI를 이용해 추천 이유와 요약을 제공합니다. 좌측 사이드바에 검색 조건을 입력하고 영상을 찾아보세요.")
 
 # 사이드바에 검색 조건 배치
