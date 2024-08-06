@@ -47,24 +47,36 @@ def get_ai_recommendation(video_title, video_description):
 # 자막 가져오기 함수 수정
 def get_video_transcript(video_id):
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        return ' '.join([entry['text'] for entry in transcript])
+        # 먼저 사용 가능한 자막 목록을 가져옵니다
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        
+        # 한국어 자막이 있으면 한국어를 사용, 없으면 영어, 그 외의 경우 첫 번째 사용 가능한 자막을 사용
+        if transcript_list.find_transcript(['ko']):
+            transcript = transcript_list.find_transcript(['ko'])
+        elif transcript_list.find_transcript(['en']):
+            transcript = transcript_list.find_transcript(['en'])
+        else:
+            transcript = transcript_list.find_transcript([])
+        
+        # 선택된 자막의 텍스트를 가져옵니다
+        return ' '.join([entry['text'] for entry in transcript.fetch()])
     except Exception as e:
         st.error(f"자막을 가져오는 중 오류 발생: {str(e)}")
         return None
 
-# 영상 정보 가져오기 함수 추가
-def get_video_info(video_id):
-    try:
-        request = youtube.videos().list(
-            part="snippet",
-            id=video_id
-        )
-        response = request.execute()
-        return response['items'][0]['snippet']
-    except Exception as e:
-        st.error(f"영상 정보를 가져오는 중 오류 발생: {str(e)}")
-        return None
+# 언어 감지 함수 추가
+def detect_language(text):
+    model = genai.GenerativeModel('gemini-pro')
+    prompt = f"다음 텍스트의 언어를 감지하세요. 'ko'는 한국어, 'en'은 영어를 의미합니다:\n\n{text[:100]}"
+    response = model.generate_content(prompt)
+    return response.text.strip().lower()
+
+# 번역 함수 추가
+def translate_to_korean(text):
+    model = genai.GenerativeModel('gemini-pro')
+    prompt = f"다음 텍스트를 한국어로 번역하세요:\n\n{text}"
+    response = model.generate_content(prompt)
+    return response.text
 
 # 영상 요약 함수 수정
 def summarize_video(video_id):
@@ -80,6 +92,13 @@ def summarize_video(video_id):
         else:
             content_to_summarize = transcript
 
+        # 언어 감지
+        language = detect_language(content_to_summarize)
+        
+        # 영어인 경우 한국어로 번역
+        if language == 'en':
+            content_to_summarize = translate_to_korean(content_to_summarize)
+
         model = genai.GenerativeModel('gemini-1.5-pro')
         prompt = f"다음 YouTube 영상의 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n{content_to_summarize}"
         response = model.generate_content(prompt)
@@ -88,7 +107,6 @@ def summarize_video(video_id):
         return summary
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
-
 # Streamlit 앱
 st.title("📺 AI YouTube 영상 추천 및 요약")
 st.markdown("이 서비스는 YouTube 영상을 검색하고 AI를 이용해 추천 이유와 요약을 제공합니다. 좌측 사이드바에 검색 조건을 입력하고 영상을 찾아보세요.")
