@@ -162,19 +162,17 @@ for video in st.session_state.search_results:
     with col2:
         st.subheader(video['snippet']['title'])
         st.write(video['snippet']['description'])
-        recommendation = get_ai_recommendation(video['snippet']['title'], video['snippet']['description'])
-        st.info("AI 추천 이유: " + recommendation)
         video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
         st.markdown(f"[영상 보기]({video_url})")
         
-    if st.button(f"내용 요약하기", key=f"summarize_{video['id']['videoId']}"):
-        with st.spinner("영상을 요약하는 중..."):
-            summary = summarize_video(video['id']['videoId'])
-             if "오류" in summary:
-                st.error(summary)
-            else:
-                st.success("요약이 완료되었습니다.")
-                st.markdown(summary)
+        if st.button(f"내용 요약하기", key=f"summarize_{video['id']['videoId']}"):
+            with st.spinner("영상을 요약하는 중..."):
+                summary = summarize_video(video['id']['videoId'])
+                if "오류" in summary:
+                    st.error(summary)
+                else:
+                    st.success("요약이 완료되었습니다.")
+                    st.markdown(summary)
     st.divider()
 
 # 요약 결과 표시
