@@ -53,34 +53,35 @@ def get_video_transcript(video_id):
         st.error(f"자막을 가져오는 중 오류 발생: {str(e)}")
         return None
 
-# 언어 감지 함수 추가
-def detect_language(text):
-    model = genai.GenerativeModel('gemini-pro')
-    prompt = f"다음 텍스트의 언어를 감지하세요. 'ko'는 한국어, 'en'은 영어를 의미합니다:\n\n{text[:100]}"
-    response = model.generate_content(prompt)
-    return response.text.strip().lower()
-
-# 번역 함수 추가
-def translate_to_korean(text):
-    model = genai.GenerativeModel('gemini-pro')
-    prompt = f"다음 텍스트를 한국어로 번역하세요:\n\n{text}"
-    response = model.generate_content(prompt)
-    return response.text
+# 영상 정보 가져오기 함수 추가
+def get_video_info(video_id):
+    try:
+        request = youtube.videos().list(
+            part="snippet",
+            id=video_id
+        )
+        response = request.execute()
+        return response['items'][0]['snippet']
+    except Exception as e:
+        st.error(f"영상 정보를 가져오는 중 오류 발생: {str(e)}")
+        return None
 
 # 영상 요약 함수 수정
 def summarize_video(video_id):
     try:
         transcript = get_video_transcript(video_id)
         if not transcript:
-            return "자막을 가져올 수 없어 요약할 수 없습니다."
-
-        language = detect_language(transcript)
-        
-        if language != 'ko':
-            transcript = translate_to_korean(transcript)
+            video_info = get_video_info(video_id)
+            if not video_info:
+                return "영상 정보를 가져올 수 없습니다."
+            
+            # 자막이 없는 경우 제목과 설명을 사용하여 요약
+            content_to_summarize = f"제목: {video_info['title']}\n설명: {video_info['description']}"
+        else:
+            content_to_summarize = transcript
 
         model = genai.GenerativeModel('gemini-1.5-pro')
-        prompt = f"다음 YouTube 영상의 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n{transcript}"
+        prompt = f"다음 YouTube 영상의 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n{content_to_summarize}"
         response = model.generate_content(prompt)
         summary = response.text
 
@@ -139,9 +140,12 @@ for video in st.session_state.search_results:
         video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
         st.markdown(f"[영상 보기]({video_url})")
         
-        if st.button(f"내용 요약하기 (요약 결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
-            with st.spinner("영상을 요약하는 중..."):
-                summary = summarize_video(video['id']['videoId'])
+    if st.button(f"내용 요약하기", key=f"summarize_{video['id']['videoId']}"):
+        with st.spinner("영상을 요약하는 중..."):
+            summary = summarize_video(video['id']['videoId'])
+            if "오류" in summary:
+                st.error(summary)
+            else:
                 st.session_state.summary = summary
     st.divider()
 
