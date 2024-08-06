@@ -140,7 +140,7 @@ for video in st.session_state.search_results:
         video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
         st.markdown(f"[영상 보기]({video_url})")
         
-    if st.button(f"내용 요약하기", key=f"summarize_{video['id']['videoId']}"):
+    if st.button(f"내용 요약하기 (화면 하단에서 요약 결과를 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
         with st.spinner("영상을 요약하는 중..."):
             summary = summarize_video(video['id']['videoId'])
             if "오류" in summary:
