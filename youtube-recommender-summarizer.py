@@ -24,8 +24,16 @@ st.markdown("""
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
 
-# YouTube 검색 함수
-def search_videos(query, order='relevance', duration=None, max_results=5):
+# 자막 가져오기 함수 (YouTube Transcript API 사용)
+def get_video_transcript(video_id):
+    try:
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
+        return ' '.join([entry['text'] for entry in transcript])
+    except Exception as e:
+        return None
+
+# YouTube 검색 및 자막 확인 함수
+def search_videos_with_transcript(query, order='relevance', duration=None, max_results=10):
     request = youtube.search().list(
         q=query,
         type='video',
@@ -35,7 +43,17 @@ def search_videos(query, order='relevance', duration=None, max_results=5):
         maxResults=max_results
     )
     response = request.execute()
-    return response['items']
+    
+    videos_with_transcript = []
+    for item in response['items']:
+        video_id = item['id']['videoId']
+        if get_video_transcript(video_id):
+            videos_with_transcript.append(item)
+        
+        if len(videos_with_transcript) == 5:
+            break
+    
+    return videos_with_transcript
 
 # AI 추천 이유 생성 함수
 def get_ai_recommendation(video_title, video_description):
@@ -43,15 +61,6 @@ def get_ai_recommendation(video_title, video_description):
     prompt = f"다음 YouTube 영상에 대한 추천 이유를 한국어로 간단히 설명해주세요:\n제목: {video_title}\n설명: {video_description}"
     response = model.generate_content(prompt)
     return response.text
-
-# 자막 가져오기 함수 (YouTube Transcript API 사용)
-def get_video_transcript(video_id):
-    try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
-        return ' '.join([entry['text'] for entry in transcript])
-    except Exception as e:
-        st.error(f"자막을 가져오는 중 오류 발생: {str(e)}")
-        return None
 
 # 영상 요약 함수
 def summarize_video(video_id):
@@ -101,8 +110,11 @@ if 'summary' not in st.session_state:
 if search_button:
     keywords = " ".join(filter(None, [keyword1, keyword2, keyword3]))
     if keywords:
-        videos = search_videos(keywords, order=order_dict[order], duration=duration_dict[duration])
+        with st.spinner("영상을 검색하고 자막을 확인하는 중..."):
+            videos = search_videos_with_transcript(keywords, order=order_dict[order], duration=duration_dict[duration])
         st.session_state.search_results = videos
+        if not videos:
+            st.warning("자막이 있는 영상을 찾을 수 없습니다. 다른 키워드로 검색해보세요.")
     else:
         st.warning("키워드를 입력해주세요.")
 
