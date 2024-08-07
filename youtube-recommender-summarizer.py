@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 
 # Streamlit 앱 설정
-st.set_page_config(page_title="AI YouTube 추천 및 요약", page_icon="📺", layout="wide")
+st.set_page_config(page_title="AI YouTube 검색 및 요약", page_icon="📺", layout="wide")
 
 # CSS를 사용하여 스크롤 가능한 컨테이너 스타일 정의
 st.markdown("""
@@ -73,7 +73,7 @@ def summarize_video(video_id):
         return f"요약 중 오류가 발생했습니다: {str(e)}"
 
 # Streamlit 앱
-st.title("📺 AI YouTube 영상 추천 및 요약")
+st.title("📺 AI YouTube 맞춤 검색 및 요약 서비스")
 st.markdown("이 서비스는 YouTube 영상을 검색하고 AI를 이용해 요약을 제공합니다. 좌측 사이드바에 검색 조건을 입력하고 영상을 찾아보세요.")
 
 # 사이드바에 검색 조건 배치
