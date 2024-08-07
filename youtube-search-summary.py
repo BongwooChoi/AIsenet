@@ -55,13 +55,6 @@ def search_videos_with_transcript(query, order='relevance', duration=None, max_r
     
     return videos_with_transcript
 
-# 3줄 요약약 생성 함수
-def get_ai_recommendation(video_title, video_description):
-    model = genai.GenerativeModel('gemini-1.5-pro')
-    prompt = f"다음 YouTube 영상을 세줄로 요약하세요.:\n제목: {video_title}\n설명: {video_description}"
-    response = model.generate_content(prompt)
-    return response.text
-
 # 영상 요약 함수
 def summarize_video(video_id):
     try:
@@ -129,12 +122,10 @@ for video in st.session_state.search_results:
     with col2:
         st.subheader(video['snippet']['title'])
         st.write(video['snippet']['description'])
-        recommendation = get_ai_recommendation(video['snippet']['title'], video['snippet']['description'])
-        st.info("3줄 요약: " + recommendation)
         video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
         st.markdown(f"[영상 보기]({video_url})")
         
-        if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
+        if st.button(f"요약하기 (결과는 화면 하단의 요약 보고서를 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
             with st.spinner("영상을 요약하는 중..."):
                 summary = summarize_video(video['id']['videoId'])
                 st.session_state.summary = summary
@@ -145,7 +136,7 @@ st.subheader("요약 보고서")
 if st.session_state.summary:
     st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
 else:
-    st.write("영상을 선택하고 요약 보고서 요청 버튼을 클릭하세요.")
+    st.write("영상을 선택하고 [요약하기] 버튼을 클릭하세요.")
 
 # 주의사항 및 안내
 st.sidebar.markdown("---")
