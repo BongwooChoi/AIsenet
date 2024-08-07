@@ -33,7 +33,7 @@ def get_video_transcript(video_id):
         return None
 
 # YouTube 검색 및 자막 확인 함수
-def search_videos_with_transcript(query, order='relevance', duration=None, max_results=5):
+def search_videos_with_transcript(query, order='relevance', duration=None, max_results=10):
     request = youtube.search().list(
         q=query,
         type='video',
@@ -50,7 +50,7 @@ def search_videos_with_transcript(query, order='relevance', duration=None, max_r
         if get_video_transcript(video_id):
             videos_with_transcript.append(item)
         
-        if len(videos_with_transcript) == 3:
+        if len(videos_with_transcript) == 5:
             break
     
     return videos_with_transcript
