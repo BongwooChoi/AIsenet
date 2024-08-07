@@ -3,7 +3,6 @@ import google.generativeai as genai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
 import os
-from datetime import datetime
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI YouTube 검색 및 요약", page_icon="📺", layout="wide")
@@ -34,7 +33,7 @@ def get_video_transcript(video_id):
         return None
 
 # YouTube 검색 및 자막 확인 함수
-def search_videos_with_transcript(query, order='relevance', duration=None, max_results=10):
+def search_videos_with_transcript(query, order='relevance', duration=None, max_results=5):
     request = youtube.search().list(
         q=query,
         type='video',
@@ -51,10 +50,17 @@ def search_videos_with_transcript(query, order='relevance', duration=None, max_r
         if get_video_transcript(video_id):
             videos_with_transcript.append(item)
         
-        if len(videos_with_transcript) == 5:
+        if len(videos_with_transcript) == 3:
             break
     
     return videos_with_transcript
+
+# AI 추천 이유 생성 함수
+def get_ai_recommendation(video_title, video_description):
+    model = genai.GenerativeModel('gemini-1.5-pro')
+    prompt = f"다음 YouTube 영상을 세줄로 요약하세요.:\n제목: {video_title}\n설명: {video_description}"
+    response = model.generate_content(prompt)
+    return response.text
 
 # 영상 요약 함수
 def summarize_video(video_id):
@@ -74,7 +80,7 @@ def summarize_video(video_id):
 
 # Streamlit 앱
 st.title("📺 AI YouTube 맞춤 검색 및 요약 서비스")
-st.markdown("이 서비스는 YouTube 영상을 검색하고 AI를 이용해 요약을 제공합니다. 좌측 사이드바에 검색 조건을 입력하고 영상을 찾아보세요.")
+st.markdown("이 서비스는 YouTube 영상을 검색하고 AI를 이용해 요약 정보를 제공합니다. 좌측 사이드바에 검색 조건을 입력하고 영상을 찾아보세요.")
 
 # 사이드바에 검색 조건 배치
 with st.sidebar:
@@ -123,23 +129,23 @@ for video in st.session_state.search_results:
     with col2:
         st.subheader(video['snippet']['title'])
         st.write(video['snippet']['description'])
+        recommendation = get_ai_recommendation(video['snippet']['title'], video['snippet']['description'])
+        st.info("AI 추천 이유: " + recommendation)
         video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
-        published_at = datetime.strptime(video['snippet']['publishedAt'], '%Y-%m-%dT%H:%M:%SZ')
-        st.write(f"업로드 일자: {published_at.strftime('%Y-%m-%d')}")
         st.markdown(f"[영상 보기]({video_url})")
         
-        if st.button(f"내용 요약하기 (요약 결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
+        if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
             with st.spinner("영상을 요약하는 중..."):
                 summary = summarize_video(video['id']['videoId'])
                 st.session_state.summary = summary
     st.divider()
 
 # 요약 결과 표시
-st.subheader("영상 요약")
+st.subheader("요약 보고서")
 if st.session_state.summary:
     st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
 else:
-    st.write("영상을 선택하고 요약하기 버튼을 클릭하세요.")
+    st.write("영상을 선택하고 요약 보고서 요청 버튼을 클릭하세요.")
 
 # 주의사항 및 안내
 st.sidebar.markdown("---")
