@@ -55,7 +55,7 @@ def search_videos_with_transcript(query, order='relevance', duration=None, max_r
     
     return videos_with_transcript
 
-# AI 추천 이유 생성 함수
+# 3줄 요약약 생성 함수
 def get_ai_recommendation(video_title, video_description):
     model = genai.GenerativeModel('gemini-1.5-pro')
     prompt = f"다음 YouTube 영상을 세줄로 요약하세요.:\n제목: {video_title}\n설명: {video_description}"
@@ -130,7 +130,7 @@ for video in st.session_state.search_results:
         st.subheader(video['snippet']['title'])
         st.write(video['snippet']['description'])
         recommendation = get_ai_recommendation(video['snippet']['title'], video['snippet']['description'])
-        st.info("AI 추천 이유: " + recommendation)
+        st.info("3줄 요약: " \n + recommendation)
         video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
         st.markdown(f"[영상 보기]({video_url})")
         
