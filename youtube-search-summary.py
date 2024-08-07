@@ -55,18 +55,22 @@ def search_videos_with_transcript(query, order='relevance', duration=None, max_r
     
     return videos_with_transcript
 
-# 영상 요약 함수
-def summarize_video(video_id):
+# 영상 요약 함수 (제목 포함)
+def summarize_video(video_id, video_title):
     try:
         transcript = get_video_transcript(video_id)
         if not transcript:
             return "자막을 가져올 수 없어 요약할 수 없습니다."
 
         model = genai.GenerativeModel('gemini-1.5-pro')
-        prompt = f"다음 YouTube 영상의 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n{transcript}"
+        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\n{transcript}"
         response = model.generate_content(prompt)
-        summary = response.text
 
+        if not response or not response.parts:
+            feedback = response.prompt_feedback if response else "No response received."
+            return f"요약 중 오류가 발생했습니다: {feedback}"
+
+        summary = response.text
         return summary
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
@@ -125,9 +129,9 @@ for video in st.session_state.search_results:
         video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
         st.markdown(f"[영상 보기]({video_url})")
         
-        if st.button(f"요약하기 (결과는 화면 하단의 요약 보고서를 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
+        if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
             with st.spinner("영상을 요약하는 중..."):
-                summary = summarize_video(video['id']['videoId'])
+                summary = summarize_video(video['id']['videoId'], video['snippet']['title'])
                 st.session_state.summary = summary
     st.divider()
 
@@ -136,7 +140,7 @@ st.subheader("요약 보고서")
 if st.session_state.summary:
     st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
 else:
-    st.write("영상을 선택하고 [요약하기] 버튼을 클릭하세요.")
+    st.write("영상을 선택하고 요약 보고서 요청 버튼을 클릭하세요.")
 
 # 주의사항 및 안내
 st.sidebar.markdown("---")
