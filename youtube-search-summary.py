@@ -7,7 +7,7 @@ import os
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI YouTube 검색 및 요약", page_icon="📺", layout="wide")
 
-# CSS를 사용하여 스크롤 가능한 컨테이너 스타일 정의
+# CSS를 사용하여 스크롤 가능한 컨테이너 스타일 정의 및 하단 고정 스타일 정의
 st.markdown("""
 <style>
 .scrollable-container {
@@ -16,6 +16,16 @@ st.markdown("""
     border: 1px solid #ddd;
     padding: 10px;
     border-radius: 5px;
+    background-color: white;
+}
+.fixed-footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background-color: white;
+    padding: 10px;
+    border-top: 1px solid #ddd;
+    z-index: 9999;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -33,14 +43,14 @@ def get_video_transcript(video_id):
         return None
 
 # YouTube 검색 및 자막 확인 함수
-def search_videos_with_transcript(query, order='relevance', duration=None, max_results=10):
+def search_videos_with_transcript(query, order='relevance', duration=None, max_results=5):
     request = youtube.search().list(
         q=query,
         type='video',
         part='id,snippet',
         order=order,
         videoDuration=duration,
-        maxResults=max_results
+        maxResults=max_results  # YouTube API에서 최대 5개의 결과를 요청
     )
     response = request.execute()
     
@@ -50,7 +60,7 @@ def search_videos_with_transcript(query, order='relevance', duration=None, max_r
         if get_video_transcript(video_id):
             videos_with_transcript.append(item)
         
-        if len(videos_with_transcript) == 5:
+        if len(videos_with_transcript) == 3:  # 자막이 있는 비디오가 3개가 되면 루프 종료
             break
     
     return videos_with_transcript
@@ -136,11 +146,13 @@ for video in st.session_state.search_results:
     st.divider()
 
 # 요약 결과 표시
+st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
 st.subheader("요약 보고서")
 if st.session_state.summary:
     st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
 else:
     st.write("영상을 선택하고 요약 보고서 요청 버튼을 클릭하세요.")
+st.markdown('</div>', unsafe_allow_html=True)
 
 # 주의사항 및 안내
 st.sidebar.markdown("---")
