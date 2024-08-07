@@ -130,7 +130,7 @@ for video in st.session_state.search_results:
         st.subheader(video['snippet']['title'])
         st.write(video['snippet']['description'])
         recommendation = get_ai_recommendation(video['snippet']['title'], video['snippet']['description'])
-        st.info("3줄 요약: \n" + recommendation)
+        st.info("3줄 요약: " + recommendation)
         video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
         st.markdown(f"[영상 보기]({video_url})")
         
