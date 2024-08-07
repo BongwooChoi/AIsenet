@@ -113,6 +113,8 @@ if search_button:
         with st.spinner("영상을 검색하고 자막을 확인하는 중..."):
             videos = search_videos_with_transcript(keywords, order=order_dict[order], duration=duration_dict[duration])
         st.session_state.search_results = videos
+        # 검색 실행 시 요약 결과 초기화
+        st.session_state.summary = ""
         if not videos:
             st.warning("자막이 있는 영상을 찾을 수 없습니다. 다른 키워드로 검색해보세요.")
     else:
