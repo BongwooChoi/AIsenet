@@ -3,7 +3,6 @@ import google.generativeai as genai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
 import os
-from .copy_report_button import CopyReportButton
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI YouTube 검색 및 요약", page_icon="📺", layout="wide")
@@ -151,7 +150,6 @@ st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
 st.subheader("요약 보고서")
 if st.session_state.summary:
     st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
-    st.write(CopyReportButton(reportText=st.session_state.summary))
 else:
     st.write("영상을 선택하고 요약 보고서 요청 버튼을 클릭하세요.")
 st.markdown('</div>', unsafe_allow_html=True)
