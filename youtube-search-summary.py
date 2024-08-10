@@ -16,12 +16,13 @@ youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
 # 뉴스 검색 함수 (Serp API 사용)
 def search_news(query, published_after, max_results=10):
     api_key = st.secrets["SERP_API_KEY"]
-    url = f"https://serpapi.com/search.json?q={query}&tbm=nws&api_key={api_key}&num={max_results * 2}&sort=date"
+    url = f"https://serpapi.com/search.json?q={query}&tbm=nws&api_key={api_key}&num={max_results}&sort=date"
     
     response = requests.get(url)
     news_data = response.json()
     articles = news_data.get('news_results', [])
     
+    # 중복 제거 (URL 기준)
     unique_articles = []
     seen_urls = set()
     for article in articles:
@@ -31,7 +32,7 @@ def search_news(query, published_after, max_results=10):
                 'source': {'name': article.get('source', '')},
                 'description': article.get('snippet', ''),
                 'url': article.get('link', ''),
-                'content': article.get('snippet', '')
+                'content': article.get('snippet', '')  # Serp API에는 content가 없으므로 snippet으로 대체
             })
             seen_urls.add(article['link'])
         if len(unique_articles) == max_results:
@@ -47,14 +48,15 @@ def get_video_transcript(video_id):
     except Exception as e:
         return None
 
-# 유튜브 검색 및 관련도 순 정렬 함수
-def search_videos_with_transcript(query, published_after, max_results=5):
+# 유튜브 검색 및 최신 순 정렬 함수
+def search_videos_with_transcript(query, published_after, max_results=10):
     request = youtube.search().list(
         q=query,
         type='video',
         part='id,snippet',
+        order='relevance',
         publishedAfter=published_after,
-        maxResults=max_results * 2
+        maxResults=max_results
     )
     response = request.execute()
 
@@ -82,7 +84,7 @@ def get_published_after(option):
     elif option == "최근 1년":
         return (today - timedelta(weeks=52)).isoformat("T") + "Z"
     else:
-        return None
+        return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
 # 뉴스 기사 요약 함수
 def summarize_news_article(article):
@@ -141,7 +143,6 @@ if 'search_results' not in st.session_state:
 # 요약 결과 저장용 세션 상태
 if 'summary' not in st.session_state:
     st.session_state.summary = ""
-    st.session_state.show_summary = False
 
 # 검색 실행
 if search_button:
@@ -165,7 +166,6 @@ if search_button:
             
             # 검색 실행 시 요약 결과 초기화
             st.session_state.summary = ""
-            st.session_state.show_summary = False
             if not st.session_state.total_results:
                 st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 키워드로 검색해보세요.")
     else:
@@ -185,11 +185,10 @@ if source == "YouTube":
             video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
             st.markdown(f"[영상 보기]({video_url})")
             
-            if st.button(f"요약 보고서 요청 (결과는 팝업으로 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
+            if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
                 with st.spinner("영상을 요약하는 중..."):
                     summary = summarize_news_article(video['snippet'])
                     st.session_state.summary = summary
-                    st.session_state.show_summary = True
         st.divider()
 
 elif source == "뉴스":
@@ -200,31 +199,31 @@ elif source == "뉴스":
         st.write(article['description'])
         st.markdown(f"[기사 보기]({article['url']})")
         
-        if st.button(f"요약 보고서 요청 (결과는 팝업으로 확인하세요.)", key=f"summarize_news_{i}"):
+        if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_news_{i}"):
             with st.spinner("기사를 요약하는 중..."):
                 summary = summarize_news_article(article)
                 st.session_state.summary = summary
-                st.session_state.show_summary = True
         
         st.divider()
 
-# 요약 결과 팝업 표시
-if st.session_state.show_summary:
-    with st.expander("요약 보고서 (클릭하여 열기/닫기)", expanded=True):
-        col1, col2 = st.columns([0.85, 0.15])
-        with col1:
-            st.subheader("요약 보고서")
-        with col2:
-            if st.session_state.summary:
-                download_summary_file(st.session_state.summary)
+# 요약 결과 표시 및 다운로드 버튼
+st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
+col1, col2 = st.columns([0.85, 0.15])  # 열을 비율로 분할
+with col1:
+    st.subheader("요약 보고서")
+with col2:
+    if st.session_state.summary:
+        download_summary_file(st.session_state.summary)
 
-        st.markdown(f'{st.session_state.summary}', unsafe_allow_html=True)
-        
-    st.session_state.show_summary = False  # 팝업을 한 번 띄운 후 자동으로 닫히도록 설정
+if st.session_state.summary:
+    st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
+else:
+    st.write("검색 결과에서 요약할 항목을 선택하세요.")
+st.markdown('</div>', unsafe_allow_html=True)
 
 # 주의사항 및 안내
 st.sidebar.markdown("---")
 st.sidebar.markdown("**안내사항:**")
-st.sidebar.markdown("- 이 서비스는 Google AI Studio API, YouTube Data API, Serp API를 사용합니다.")
+st.sidebar.markdown("- 이 서비스는 Google AI Studio API, YouTube Data API, Google News API를 사용합니다.")
 st.sidebar.markdown("- 검색 결과의 품질과 복잡도에 따라 처리 시간이 달라질 수 있습니다.")
 st.sidebar.markdown("- 저작권 보호를 위해 개인적인 용도로만 사용해주세요.")
