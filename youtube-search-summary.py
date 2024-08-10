@@ -181,7 +181,7 @@ if search_button:
             
             elif source == "뉴스":
                 # 뉴스 검색
-                news_articles = search_news(keywords, published_after, max_results=20)
+                news_articles = search_news(keywords, published_after, max_results=10)
                 total_news_results = len(news_articles)
                 st.session_state.search_results = {'videos': [], 'news': news_articles}
                 st.session_state.total_results = total_news_results
