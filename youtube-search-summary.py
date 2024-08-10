@@ -132,16 +132,22 @@ for video in st.session_state.search_results:
     st.divider()
 
 # 요약 결과 표시 및 다운로드 버튼
-st.subheader("요약 보고서")
+st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
+col1, col2 = st.columns([0.85, 0.15])  # 열을 비율로 분할
+with col1:
+    st.subheader("요약 보고서")
+with col2:
+    if st.session_state.summary:
+        download_summary_file(st.session_state.summary)
+
 if st.session_state.summary:
     st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
-    download_summary_file(st.session_state.summary)
 else:
     st.write("영상을 선택하고 요약 보고서 요청 버튼을 클릭하세요.")
+st.markdown('</div>', unsafe_allow_html=True)
 
 # 주의사항 및 안내
 st.sidebar.markdown("---")
 st.sidebar.markdown("**안내사항:**")
 st.sidebar.markdown("- 이 서비스는 Google AI Studio API와 YouTube Data API를 사용합니다.")
-st.sidebar.markdown("- 영상의 길이와 복잡도에 따라 처리 시간이 달라질 수 있습니다.")
 st.sidebar.markdown("- 저작권 보호를 위해 개인적인 용도로만 사용해주세요.")
