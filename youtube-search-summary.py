@@ -21,37 +21,34 @@ def get_video_transcript(video_id):
 
 # 유튜브 쇼츠를 제외한 검색 함수
 def search_videos_with_transcript(query, published_after, max_results=5):
-    # medium 및 long 비디오를 각각 검색
-    request_medium = youtube.search().list(
+    request = youtube.search().list(
         q=query,
         type='video',
         part='id,snippet',
         order='date',  # 최신 순으로 정렬
         publishedAfter=published_after,
-        videoDuration='medium',  # 중간 길이의 비디오
-        maxResults=max_results
+        maxResults=max_results * 2  # 관련성 높은 결과를 필터링하기 위해 더 많은 결과 요청
     )
-    
-    request_long = youtube.search().list(
-        q=query,
-        type='video',
-        part='id,snippet',
-        order='date',  # 최신 순으로 정렬
-        publishedAfter=published_after,
-        videoDuration='long',  # 긴 길이의 비디오
-        maxResults=max_results
-    )
-    
-    response_medium = request_medium.execute()
-    response_long = request_long.execute()
-
-    # 두 개의 결과를 합치기
-    response = {'items': response_medium['items'] + response_long['items']}
+    response = request.execute()
 
     videos_with_transcript = []
     for item in response['items']:
         video_id = item['id']['videoId']
-        if get_video_transcript(video_id):
+
+        # 동영상 길이 가져오기
+        video_details = youtube.videos().list(
+            part='contentDetails',
+            id=video_id
+        ).execute()
+
+        duration = video_details['items'][0]['contentDetails']['duration']
+        
+        # 동영상 길이를 ISO 8601 기간 포맷(PnYnMnDTnHnMnS)에서 초 단위로 변환
+        import isodate
+        duration_seconds = isodate.parse_duration(duration).total_seconds()
+
+        # 60초(1분) 이하인 경우, 유튜브 쇼츠로 간주하고 제외
+        if duration_seconds > 60 and get_video_transcript(video_id):
             videos_with_transcript.append(item)
         
         if len(videos_with_transcript) == max_results:  # 자막이 있는 비디오가 max_results 개수만큼 되면 루프 종료
@@ -119,7 +116,7 @@ with st.sidebar:
     keyword2 = st.text_input("두 번째 키워드 (선택 사항)", key="keyword2")
     keyword3 = st.text_input("세 번째 키워드 (선택 사항)", key="keyword3")
 
-    period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
+    period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=1)
 
     search_button = st.button("검색 실행")
 
