@@ -26,7 +26,7 @@ st.markdown("""
 }
 
 .scrollable-container::-webkit-scrollbar-thumb {
-    background-color: #888; /* 스크롤바의 색상 */
+    background-color: #1E90FF; /* 스크롤바의 색상을 선명한 파란색으로 설정 */
     border-radius: 10px;
     border: 3px solid #f0f0f0; /* 스크롤바와 트랙 사이의 간격 */
 }
