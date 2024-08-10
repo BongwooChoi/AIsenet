@@ -207,7 +207,7 @@ if source == "YouTube":
             
             if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
                 with st.spinner("영상을 요약하는 중..."):
-                    summary = summarize_news_article(video['snippet'])
+                    summary = summarize_video(video_id, video_title)
                     st.session_state.summary = summary
         st.divider()
 
