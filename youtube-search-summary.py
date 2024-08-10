@@ -119,7 +119,7 @@ with st.sidebar:
     keyword2 = st.text_input("두 번째 키워드 (선택 사항)", key="keyword2")
     keyword3 = st.text_input("세 번째 키워드 (선택 사항)", key="keyword3")
 
-    period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=1)
+    period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
 
     search_button = st.button("검색 실행")
 
