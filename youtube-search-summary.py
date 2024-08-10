@@ -19,19 +19,35 @@ def get_video_transcript(video_id):
     except Exception as e:
         return None
 
-# YouTube 검색 및 자막 확인 함수
+# 유튜브 쇼츠를 제외한 검색 함수
 def search_videos_with_transcript(query, published_after, max_results=5):
-    request = youtube.search().list(
+    # medium 및 long 비디오를 각각 검색
+    request_medium = youtube.search().list(
         q=query,
         type='video',
         part='id,snippet',
         order='date',  # 최신 순으로 정렬
         publishedAfter=published_after,
-        maxResults=max_results * 2  # 관련성 높은 결과를 필터링하기 위해 더 많은 결과 요청
+        videoDuration='medium',  # 중간 길이의 비디오
+        maxResults=max_results
     )
-    response = request.execute()
+    
+    request_long = youtube.search().list(
+        q=query,
+        type='video',
+        part='id,snippet',
+        order='date',  # 최신 순으로 정렬
+        publishedAfter=published_after,
+        videoDuration='long',  # 긴 길이의 비디오
+        maxResults=max_results
+    )
+    
+    response_medium = request_medium.execute()
+    response_long = request_long.execute()
 
-    # 결과를 관련성 기준으로 필터링
+    # 두 개의 결과를 합치기
+    response = {'items': response_medium['items'] + response_long['items']}
+
     videos_with_transcript = []
     for item in response['items']:
         video_id = item['id']['videoId']
