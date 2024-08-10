@@ -16,13 +16,15 @@ st.markdown("""
     border: 1px solid #ddd;
     padding: 10px;
     border-radius: 5px;
-    background-color: white;
+    background-color: #f0f0f0; /* 백그라운드 색상을 연한 회색으로 설정 */
+    color: #000000; /* 텍스트 색상을 검정색으로 설정 */
 }
 .fixed-footer {
     position: fixed;
     bottom: 0;
     width: 100%;
-    background-color: white;
+    background-color: #f0f0f0; /* 백그라운드 색상을 연한 회색으로 설정 */
+    color: #000000; /* 텍스트 색상을 검정색으로 설정 */
     padding: 10px;
     border-top: 1px solid #ddd;
     z-index: 9999;
