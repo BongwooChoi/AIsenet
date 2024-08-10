@@ -93,8 +93,8 @@ def summarize_and_analyze_article(article):
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
         prompt = f"""
-다음 뉴스 기사의 제목과 내용을 요약하고 투자에 대한 긍정적 또는 부정적 의견을 분석하세요. 
-투자에 대한 분석 결과를 기반으로 추천 여부와 추천 사유를 한 문장으로 작성하세요. 
+다음 뉴스 기사의 제목과 내용을 요약하고, 해당 내용이 투자에 미치는 영향을 긍정적 또는 부정적으로 분석하세요. 
+분석 결과와 함께 그 이유를 설명하고, 이 내용을 바탕으로 추천 여부와 추천 사유를 포함하여 답변하세요. 
 또한, 요약 마지막에 원문의 언어(한국어 또는 영어)를 명시해 주세요.
 
 제목: {article['title']}
@@ -113,19 +113,12 @@ def summarize_and_analyze_article(article):
             }
 
         summary = response.text
-        # 임의로 긍부정 태그와 중요도를 설정 (이 부분은 실제 응답에 따라 조정 필요)
-        if "긍정적" in summary:
-            tag = "긍정"
-            importance = "★★★★☆"
-        else:
-            tag = "부정"
-            importance = "★★☆☆☆"
-        
+        # gemini-1.5-pro로부터 받은 추천 사유와 태그를 포함한 요약 반환
         return {
             "summary": summary,
-            "recommendation": summary.split("\n")[-2],  # 마지막에서 두 번째 줄을 추천 사유로 간주
-            "tag": tag,
-            "importance": importance
+            "recommendation": summary.split("\n")[-3],  # 추천 사유가 포함된 부분 추출
+            "tag": summary.split("\n")[-2],  # 긍정/부정 태그 추출
+            "importance": summary.split("\n")[-1]  # 중요도 추출
         }
     except Exception as e:
         return {
@@ -209,14 +202,19 @@ if source == "YouTube":
             st.subheader(video['snippet']['title'])
             st.markdown(f"**채널명:** {video['snippet']['channelTitle']}")
             st.write(video['snippet']['description'])
-            video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
-            st.markdown(f"[영상 보기]({video_url})")
             
             if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
                 with st.spinner("영상을 요약하는 중..."):
                     summary = summarize_and_analyze_article(video['snippet'])
                     st.session_state.summary = summary["summary"]
                     recommended_contents.append(summary)
+            
+            if 'recommendation' in st.session_state.summary:
+                st.markdown(f"**추천 사유:** {st.session_state.summary['recommendation']}")
+                st.markdown(f"**태그:** {st.session_state.summary['tag']}, **중요도:** {st.session_state.summary['importance']}")
+                
+            video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
+            st.markdown(f"[영상 보기]({video_url})")
         st.divider()
 
 elif source == "뉴스":
@@ -227,7 +225,6 @@ elif source == "뉴스":
         st.subheader(article['title'])
         st.markdown(f"**출처:** {article['source']['name']}")
         st.write(article['description'])
-        st.markdown(f"[기사 보기]({article['url']})")
         
         if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_news_{i}"):
             with st.spinner("기사를 요약하는 중..."):
@@ -235,6 +232,11 @@ elif source == "뉴스":
                 st.session_state.summary = summary["summary"]
                 recommended_contents.append(summary)
         
+        if 'recommendation' in st.session_state.summary:
+            st.markdown(f"**추천 사유:** {st.session_state.summary['recommendation']}")
+            st.markdown(f"**태그:** {st.session_state.summary['tag']}, **중요도:** {st.session_state.summary['importance']}")
+        
+        st.markdown(f"[기사 보기]({article['url']})")
         st.divider()
 
 # 추천 콘텐츠를 중요도에 따라 정렬하고 상위 5개 표시
@@ -243,9 +245,9 @@ top_recommendations = recommended_contents[:5]
 
 st.subheader("투자에 도움이 될 만한 추천 콘텐츠 TOP 5")
 for i, recommendation in enumerate(top_recommendations):
-    st.write(f"**{i+1}. {recommendation['summary']}**")
-    st.write(f"추천 사유: {recommendation['recommendation']}")
-    st.write(f"태그: {recommendation['tag']}, 중요도: {recommendation['importance']}")
+    st.write(f"**{i+1}. 요약 내용:** {recommendation['summary']}")
+    st.write(f"**추천 사유:** {recommendation['recommendation']}")
+    st.write(f"**태그:** {recommendation['tag']}, **중요도:** {recommendation['importance']}")
     st.divider()
 
 # 요약 결과 표시 및 다운로드 버튼
