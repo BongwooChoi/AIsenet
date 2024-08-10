@@ -13,28 +13,25 @@ st.set_page_config(page_title="AI YouTube & 뉴스 검색 및 요약", page_icon
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
 
-# 뉴스 검색 함수 (Serp API 사용)
-def search_news(query, published_after, max_results=10):
-    api_key = st.secrets["SERP_API_KEY"]
-    url = f"https://serpapi.com/search.json?q={query}&tbm=nws&api_key={api_key}&num={max_results * 2}&sort=date"
+# 뉴스 검색 함수 (Google News API 사용)
+def search_news(query, published_after, max_results=20):
+    api_key = st.secrets["GOOGLE_NEWS_API_KEY"]
+    url = f"https://newsapi.org/v2/everything?q={query}&from={published_after}&sortBy=publishedAt&apiKey={api_key}&pageSize={max_results * 2}"
     
     response = requests.get(url)
     news_data = response.json()
-    articles = news_data.get('news_results', [])
+    articles = news_data.get('articles', [])
+    
+    # 결과를 출판일 기준으로 정렬 (최신순)
+    sorted_articles = sorted(articles, key=lambda x: x['publishedAt'], reverse=True)
     
     # 중복 제거 (URL 기준)
     unique_articles = []
     seen_urls = set()
-    for article in articles:
-        if article['link'] not in seen_urls:
-            unique_articles.append({
-                'title': article.get('title', ''),
-                'source': {'name': article.get('source', '')},
-                'description': article.get('snippet', ''),
-                'url': article.get('link', ''),
-                'content': article.get('snippet', '')  # Serp API에는 content가 없으므로 snippet으로 대체
-            })
-            seen_urls.add(article['link'])
+    for article in sorted_articles:
+        if article['url'] not in seen_urls:
+            unique_articles.append(article)
+            seen_urls.add(article['url'])
         if len(unique_articles) == max_results:
             break
     
@@ -65,6 +62,8 @@ def search_videos_with_transcript(query, published_after, max_results=5):
         video_id = item['id']['videoId']
         if get_video_transcript(video_id):
             videos_with_transcript.append(item)
+    
+    videos_with_transcript.sort(key=lambda x: x['snippet']['publishedAt'], reverse=True)
     
     return videos_with_transcript[:max_results], len(response['items'])
 
@@ -110,30 +109,10 @@ def summarize_news_article(article):
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
 
-# 영상 요약 함수 (제목 포함)
-def summarize_video(video_id, video_title):
-    try:
-        transcript = get_video_transcript(video_id)
-        if not transcript:
-            return "자막을 가져올 수 없어 요약할 수 없습니다."
-
-        model = genai.GenerativeModel('gemini-1.5-pro')
-        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\n{transcript}"
-        response = model.generate_content(prompt)
-
-        if not response or not response.parts:
-            feedback = response.prompt_feedback if response else "No response received."
-            return f"요약 중 오류가 발생했습니다: {feedback}"
-
-        summary = response.text
-        return summary
-    except Exception as e:
-        return f"요약 중 오류가 발생했습니다: {str(e)}"
-
 # 파일로 다운로드할 수 있는 함수
 def download_summary_file(summary_text, file_name="summary.txt"):
     st.download_button(
-        label="다운로드",
+        label="요약 보고서 다운로드",
         data=summary_text,
         file_name=file_name,
         mime="text/plain"
@@ -207,9 +186,7 @@ if source == "YouTube":
             
             if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
                 with st.spinner("영상을 요약하는 중..."):
-                    video_id = video['id']['videoId']  # video_id 변수 설정
-                    video_title = video['snippet']['title']  # video_title 변수 설정
-                    summary = summarize_video(video_id, video_title)
+                    summary = summarize_news_article(video['snippet'])
                     st.session_state.summary = summary
         st.divider()
 
