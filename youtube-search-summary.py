@@ -108,29 +108,37 @@ def summarize_video(video_id, video_title):
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
 
-# 뉴스 기사 요약 함수
-def summarize_news_article(article):
+# 뉴스 기사 종합 분석 함수
+def analyze_news_articles(articles):
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
+        
+        # 모든 기사의 제목과 내용을 하나의 문자열로 결합
+        all_articles = "\n\n".join([f"제목: {article['title']}\n내용: {article['content']}" for article in articles])
+        
         prompt = f"""
-다음 뉴스 기사의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 
-원문이 영어인 경우에도 최종 결과는 반드시 한국어로 작성해야 합니다.
-또한, 요약 마지막에 원문의 언어(한국어 또는 영어)를 명시해 주세요.
+다음은 특정 주제에 관한 여러 뉴스 기사의 제목과 내용입니다. 이 기사들을 종합적으로 분석하여 다음 형식의 보고서를 작성해주세요:
 
-제목: {article['title']}
+1. 주요 이슈 요약 (3-5개의 핵심 포인트)
+2. 상세 분석 (각 주요 이슈에 대한 심층 설명)
+3. 다양한 관점 (기사들에서 나타난 서로 다른 의견이나 해석)
+4. 시사점 및 향후 전망
 
-내용: {article['content']}
+보고서는 한국어로 작성해주세요. 분석 시 객관성을 유지하고, 편향된 의견을 제시하지 않도록 주의해주세요.
+
+기사 내용:
+{all_articles}
 """
         response = model.generate_content(prompt)
 
         if not response or not response.parts:
             feedback = response.prompt_feedback if response else "No response received."
-            return f"요약 중 오류가 발생했습니다: {feedback}"
+            return f"분석 중 오류가 발생했습니다: {feedback}"
 
-        summary = response.text
-        return summary
+        analysis = response.text
+        return analysis
     except Exception as e:
-        return f"요약 중 오류가 발생했습니다: {str(e)}"
+        return f"분석 중 오류가 발생했습니다: {str(e)}"
 
 # 파일로 다운로드할 수 있는 함수
 def download_summary_file(summary_text, file_name="summary.txt"):
@@ -143,7 +151,7 @@ def download_summary_file(summary_text, file_name="summary.txt"):
 
 # Streamlit 앱
 st.title("📰 AI YouTube & 뉴스 검색 및 요약 서비스")
-st.markdown("이 서비스는 YouTube 영상과 뉴스(한국어 및 영어)를 검색하고 AI를 이용해 요약 정보를 제공합니다. 좌측 사이드바에 검색 조건을 입력하고 검색해보세요.")
+st.markdown("이 서비스는 YouTube 영상과 뉴스를 검색하고 AI를 이용해 요약 정보를 제공합니다. 좌측 사이드바에 검색 조건을 입력하고 검색해보세요.")
 
 # 사이드바에 검색 조건 배치
 with st.sidebar:
@@ -178,16 +186,19 @@ if search_button:
                 videos, total_video_results = search_videos_with_transcript(keywords, published_after)
                 st.session_state.search_results = {'videos': videos, 'news': []}
                 st.session_state.total_results = total_video_results
+                st.session_state.summary = ""  # YouTube 검색 시 요약 초기화
             
             elif source == "뉴스":
-                # 뉴스 검색
+                # 뉴스 검색 및 자동 분석
                 news_articles = search_news(keywords, published_after, max_results=10)
                 total_news_results = len(news_articles)
                 st.session_state.search_results = {'videos': [], 'news': news_articles}
                 st.session_state.total_results = total_news_results
+                
+                # 뉴스 기사 자동 분석
+                with st.spinner("뉴스 기사를 종합 분석 중입니다..."):
+                    st.session_state.summary = analyze_news_articles(news_articles)
             
-            # 검색 실행 시 요약 결과 초기화
-            st.session_state.summary = ""
             if not st.session_state.total_results:
                 st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 키워드로 검색해보세요.")
     else:
@@ -223,18 +234,16 @@ elif source == "뉴스":
         st.write(article['description'])
         st.markdown(f"[기사 보기]({article['url']})")
         
-        if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_news_{i}"):
-            with st.spinner("기사를 요약하는 중..."):
-                summary = summarize_news_article(article)
-                st.session_state.summary = summary
-        
         st.divider()
 
 # 요약 결과 표시 및 다운로드 버튼
 st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
 col1, col2 = st.columns([0.85, 0.15])  # 열을 비율로 분할
 with col1:
-    st.subheader("요약 보고서")
+    if source == "YouTube":
+        st.subheader("영상 요약 보고서")
+    else:
+        st.subheader("뉴스 종합 분석 보고서")
 with col2:
     if st.session_state.summary:
         download_summary_file(st.session_state.summary)
@@ -242,7 +251,10 @@ with col2:
 if st.session_state.summary:
     st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
 else:
-    st.write("검색 결과에서 요약할 항목을 선택하세요.")
+    if source == "YouTube":
+        st.write("검색 결과에서 요약할 영상을 선택하세요.")
+    else:
+        st.write("뉴스 검색 결과가 없습니다.")
 st.markdown('</div>', unsafe_allow_html=True)
 
 # 주의사항 및 안내
