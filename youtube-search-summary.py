@@ -16,7 +16,7 @@ youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
 # 뉴스 검색 함수 (Serp API 사용)
 def search_news(query, published_after, max_results=10):
     api_key = st.secrets["SERP_API_KEY"]
-    url = f"https://serpapi.com/search.json?q={query}&tbm=nws&api_key={api_key}&num={max_results * 2}&sort=date"
+    url = f"https://serpapi.com/search.json?q={query}&tbm=nws&api_key={api_key}&num={max_results}&sort=date"
     
     response = requests.get(url)
     news_data = response.json()
@@ -49,14 +49,14 @@ def get_video_transcript(video_id):
         return None
 
 # 유튜브 검색 및 최신 순 정렬 함수
-def search_videos_with_transcript(query, published_after, max_results=5):
+def search_videos_with_transcript(query, published_after, max_results=10):
     request = youtube.search().list(
         q=query,
         type='video',
         part='id,snippet',
         order='relevance',
         publishedAfter=published_after,
-        maxResults=max_results * 2
+        maxResults=max_results
     )
     response = request.execute()
 
@@ -135,7 +135,7 @@ def summarize_news_article(article):
 # 파일로 다운로드할 수 있는 함수
 def download_summary_file(summary_text, file_name="summary.txt"):
     st.download_button(
-        label="요약 보고서 다운로드",
+        label="다운로드",
         data=summary_text,
         file_name=file_name,
         mime="text/plain"
