@@ -88,13 +88,13 @@ def get_published_after(option):
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
-# 뉴스 기사 요약 함수
-def summarize_news_article(article):
+# 뉴스 기사 요약 및 분석 함수
+def summarize_and_analyze_article(article):
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
         prompt = f"""
-다음 뉴스 기사의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 
-원문이 영어인 경우에도 최종 결과는 반드시 한국어로 작성해야 합니다.
+다음 뉴스 기사의 제목과 내용을 요약하고 투자에 대한 긍정적 또는 부정적 의견을 분석하세요. 
+투자에 대한 분석 결과를 기반으로 추천 여부와 추천 사유를 한 문장으로 작성하세요. 
 또한, 요약 마지막에 원문의 언어(한국어 또는 영어)를 명시해 주세요.
 
 제목: {article['title']}
@@ -105,12 +105,35 @@ def summarize_news_article(article):
 
         if not response or not response.parts:
             feedback = response.prompt_feedback if response else "No response received."
-            return f"요약 중 오류가 발생했습니다: {feedback}"
+            return {
+                "summary": f"요약 중 오류가 발생했습니다: {feedback}",
+                "recommendation": "분석 불가",
+                "tag": "불명확",
+                "importance": "★"
+            }
 
         summary = response.text
-        return summary
+        # 임의로 긍부정 태그와 중요도를 설정 (이 부분은 실제 응답에 따라 조정 필요)
+        if "긍정적" in summary:
+            tag = "긍정"
+            importance = "★★★★☆"
+        else:
+            tag = "부정"
+            importance = "★★☆☆☆"
+        
+        return {
+            "summary": summary,
+            "recommendation": summary.split("\n")[-2],  # 마지막에서 두 번째 줄을 추천 사유로 간주
+            "tag": tag,
+            "importance": importance
+        }
     except Exception as e:
-        return f"요약 중 오류가 발생했습니다: {str(e)}"
+        return {
+            "summary": f"요약 중 오류가 발생했습니다: {str(e)}",
+            "recommendation": "분석 불가",
+            "tag": "불명확",
+            "importance": "★"
+        }
 
 # 파일로 다운로드할 수 있는 함수
 def download_summary_file(summary_text, file_name="summary.txt"):
@@ -173,9 +196,11 @@ if search_button:
     else:
         st.warning("키워드를 입력해주세요.")
 
-# 검색 결과 표시
+# 검색 결과 표시 및 추천 콘텐츠 선정
 if source == "YouTube":
     st.subheader(f"검색된 총 YouTube 영상: {st.session_state.total_results}개")
+    recommended_contents = []
+    
     for video in st.session_state.search_results['videos']:
         col1, col2 = st.columns([1, 2])
         with col1:
@@ -189,12 +214,15 @@ if source == "YouTube":
             
             if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
                 with st.spinner("영상을 요약하는 중..."):
-                    summary = summarize_news_article(video['snippet'])
-                    st.session_state.summary = summary
+                    summary = summarize_and_analyze_article(video['snippet'])
+                    st.session_state.summary = summary["summary"]
+                    recommended_contents.append(summary)
         st.divider()
 
 elif source == "뉴스":
     st.subheader(f"검색된 총 뉴스 기사: {st.session_state.total_results}개")
+    recommended_contents = []
+    
     for i, article in enumerate(st.session_state.search_results['news']):
         st.subheader(article['title'])
         st.markdown(f"**출처:** {article['source']['name']}")
@@ -203,10 +231,22 @@ elif source == "뉴스":
         
         if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_news_{i}"):
             with st.spinner("기사를 요약하는 중..."):
-                summary = summarize_news_article(article)
-                st.session_state.summary = summary
+                summary = summarize_and_analyze_article(article)
+                st.session_state.summary = summary["summary"]
+                recommended_contents.append(summary)
         
         st.divider()
+
+# 추천 콘텐츠를 중요도에 따라 정렬하고 상위 5개 표시
+recommended_contents.sort(key=lambda x: x["importance"], reverse=True)
+top_recommendations = recommended_contents[:5]
+
+st.subheader("투자에 도움이 될 만한 추천 콘텐츠 TOP 5")
+for i, recommendation in enumerate(top_recommendations):
+    st.write(f"**{i+1}. {recommendation['summary']}**")
+    st.write(f"추천 사유: {recommendation['recommendation']}")
+    st.write(f"태그: {recommendation['tag']}, 중요도: {recommendation['importance']}")
+    st.divider()
 
 # 요약 결과 표시 및 다운로드 버튼
 st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
