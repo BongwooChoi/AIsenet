@@ -16,19 +16,16 @@ youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
 # 뉴스 검색 함수 (Google News API 사용)
 def search_news(query, published_after, max_results=10):
     api_key = st.secrets["GOOGLE_NEWS_API_KEY"]
-    url = f"https://newsapi.org/v2/everything?q={query}&from={published_after}&sortBy=publishedAt&apiKey={api_key}&pageSize={max_results * 2}"
+    url = f"https://newsapi.org/v2/everything?q={query}&from={published_after}&sortBy=relevancy&apiKey={api_key}&pageSize={max_results * 2}"
     
     response = requests.get(url)
     news_data = response.json()
     articles = news_data.get('articles', [])
     
-    # 결과를 출판일 기준으로 정렬 (최신순)
-    sorted_articles = sorted(articles, key=lambda x: x['publishedAt'], reverse=True)
-    
     # 중복 제거 (URL 기준)
     unique_articles = []
     seen_urls = set()
-    for article in sorted_articles:
+    for article in articles:
         if article['url'] not in seen_urls:
             unique_articles.append(article)
             seen_urls.add(article['url'])
