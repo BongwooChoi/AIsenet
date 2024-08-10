@@ -20,24 +20,25 @@ def get_video_transcript(video_id):
         return None
 
 # YouTube 검색 및 자막 확인 함수
-def search_videos_with_transcript(query, order='relevance', duration=None, max_results=5):
+def search_videos_with_transcript(query, published_after, max_results=5):
     request = youtube.search().list(
         q=query,
         type='video',
         part='id,snippet',
-        order=order,
-        videoDuration=duration,
-        maxResults=max_results  # YouTube API에서 최대 5개의 결과를 요청
+        order='date',  # 최신 순으로 정렬
+        publishedAfter=published_after,
+        maxResults=max_results * 2  # 관련성 높은 결과를 필터링하기 위해 더 많은 결과 요청
     )
     response = request.execute()
-    
+
+    # 결과를 관련성 기준으로 필터링
     videos_with_transcript = []
     for item in response['items']:
         video_id = item['id']['videoId']
         if get_video_transcript(video_id):
             videos_with_transcript.append(item)
         
-        if len(videos_with_transcript) == 3:  # 자막이 있는 비디오가 3개가 되면 루프 종료
+        if len(videos_with_transcript) == max_results:  # 자막이 있는 비디오가 max_results 개수만큼 되면 루프 종료
             break
     
     return videos_with_transcript
@@ -62,10 +63,30 @@ def summarize_video(video_id, video_title):
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
 
+# 조회 기간 선택 함수
+def get_published_after(option):
+    from datetime import datetime, timedelta
+
+    today = datetime.utcnow()
+    if option == "최근 1일":
+        return (today - timedelta(days=1)).isoformat("T") + "Z"
+    elif option == "최근 1주일":
+        return (today - timedelta(weeks=1)).isoformat("T") + "Z"
+    elif option == "최근 1개월":
+        return (today - timedelta(weeks=4)).isoformat("T") + "Z"
+    elif option == "최근 3개월":
+        return (today - timedelta(weeks=12)).isoformat("T") + "Z"
+    elif option == "최근 6개월":
+        return (today - timedelta(weeks=24)).isoformat("T") + "Z"
+    elif option == "최근 1년":
+        return (today - timedelta(weeks=52)).isoformat("T") + "Z"
+    else:
+        return None  # 이 경우 조회 기간 필터를 사용하지 않음
+
 # 파일로 다운로드할 수 있는 함수
 def download_summary_file(summary_text, file_name="summary.txt"):
     st.download_button(
-        label="다운로드",
+        label="요약 보고서 다운로드",
         data=summary_text,
         file_name=file_name,
         mime="text/plain"
@@ -82,14 +103,9 @@ with st.sidebar:
     keyword2 = st.text_input("두 번째 키워드 (선택 사항)", key="keyword2")
     keyword3 = st.text_input("세 번째 키워드 (선택 사항)", key="keyword3")
 
-    order = st.selectbox("정렬 기준", ["관련성", "조회수", "날짜"], index=0)
-    duration = st.selectbox("재생 시간 필터", ["모두", "짧은 동영상 (< 5분)", "중간 길이 동영상 (5~20분)", "긴 동영상 (> 20분)"], index=0)
+    period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=1)
 
     search_button = st.button("검색 실행")
-
-# 매개변수 변환
-order_dict = {"관련성": "relevance", "조회수": "viewCount", "날짜": "date"}
-duration_dict = {"모두": None, "짧은 동영상 (< 5분)": "short", "중간 길이 동영상 (5~20분)": "medium", "긴 동영상 (> 20분)": "long"}
 
 # 검색 결과 저장용 세션 상태
 if 'search_results' not in st.session_state:
@@ -104,7 +120,8 @@ if search_button:
     keywords = " ".join(filter(None, [keyword1, keyword2, keyword3]))
     if keywords:
         with st.spinner("영상을 검색하고 자막을 확인하는 중..."):
-            videos = search_videos_with_transcript(keywords, order=order_dict[order], duration=duration_dict[duration])
+            published_after = get_published_after(period)
+            videos = search_videos_with_transcript(keywords, published_after)
         st.session_state.search_results = videos
         # 검색 실행 시 요약 결과 초기화
         st.session_state.summary = ""
@@ -150,4 +167,5 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.sidebar.markdown("---")
 st.sidebar.markdown("**안내사항:**")
 st.sidebar.markdown("- 이 서비스는 Google AI Studio API와 YouTube Data API를 사용합니다.")
+st.sidebar.markdown("- 영상의 길이와 복잡도에 따라 처리 시간이 달라질 수 있습니다.")
 st.sidebar.markdown("- 저작권 보호를 위해 개인적인 용도로만 사용해주세요.")
