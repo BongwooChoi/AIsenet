@@ -17,6 +17,8 @@ youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
 def search_news(query, published_after, max_results=5):
     api_key = st.secrets["GOOGLE_NEWS_API_KEY"]
     url = f"https://newsapi.org/v2/everything?q={query}&from={published_after}&sortBy=relevance&apiKey={api_key}&pageSize={max_results}"
+    
+    # 다양한 출처에서 검색하도록 domains 파라미터를 제거하고, sources 파라미터도 사용하지 않습니다.
     response = requests.get(url)
     news_data = response.json()
     return news_data.get('articles', [])
@@ -91,7 +93,7 @@ def summarize_news_article(article):
 # 파일로 다운로드할 수 있는 함수
 def download_summary_file(summary_text, file_name="summary.txt"):
     st.download_button(
-        label="다운로드",
+        label="요약 보고서 다운로드",
         data=summary_text,
         file_name=file_name,
         mime="text/plain"
