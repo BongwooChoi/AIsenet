@@ -3,7 +3,7 @@ import google.generativeai as genai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
 import os
-from datetime import datetime
+from datetime import datetime, timedelta  # timedelta를 함께 임포트
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI YouTube 검색 및 요약", page_icon="📺", layout="wide")
