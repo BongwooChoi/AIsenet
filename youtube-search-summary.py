@@ -88,13 +88,13 @@ def get_published_after(option):
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
-# 뉴스 기사 요약 및 분석 함수
-def summarize_and_analyze_article(article):
+# 뉴스 기사 요약 함수
+def summarize_news_article(article):
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
         prompt = f"""
-다음 뉴스 기사의 제목과 내용을 요약하고, 해당 내용이 투자에 미치는 영향을 긍정적 또는 부정적으로 분석하세요. 
-분석 결과와 함께 그 이유를 설명하고, 이 내용을 바탕으로 추천 여부와 추천 사유를 포함하여 답변하세요. 
+다음 뉴스 기사의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 
+원문이 영어인 경우에도 최종 결과는 반드시 한국어로 작성해야 합니다.
 또한, 요약 마지막에 원문의 언어(한국어 또는 영어)를 명시해 주세요.
 
 제목: {article['title']}
@@ -105,28 +105,12 @@ def summarize_and_analyze_article(article):
 
         if not response or not response.parts:
             feedback = response.prompt_feedback if response else "No response received."
-            return {
-                "summary": f"요약 중 오류가 발생했습니다: {feedback}",
-                "recommendation": "분석 불가",
-                "tag": "불명확",
-                "importance": "★"
-            }
+            return f"요약 중 오류가 발생했습니다: {feedback}"
 
         summary = response.text
-        # gemini-1.5-pro로부터 받은 추천 사유와 태그를 포함한 요약 반환
-        return {
-            "summary": summary,
-            "recommendation": summary.split("\n")[-3],  # 추천 사유가 포함된 부분 추출
-            "tag": summary.split("\n")[-2],  # 긍정/부정 태그 추출
-            "importance": summary.split("\n")[-1]  # 중요도 추출
-        }
+        return summary
     except Exception as e:
-        return {
-            "summary": f"요약 중 오류가 발생했습니다: {str(e)}",
-            "recommendation": "분석 불가",
-            "tag": "불명확",
-            "importance": "★"
-        }
+        return f"요약 중 오류가 발생했습니다: {str(e)}"
 
 # 파일로 다운로드할 수 있는 함수
 def download_summary_file(summary_text, file_name="summary.txt"):
@@ -182,12 +166,6 @@ if search_button:
                 st.session_state.search_results = {'videos': [], 'news': news_articles}
                 st.session_state.total_results = total_news_results
             
-            # 검색된 모든 결과에 대해 요약 및 추천 분석 실행
-            for i, article in enumerate(st.session_state.search_results['news']):
-                st.session_state.search_results['news'][i].update(summarize_and_analyze_article(article))
-            for i, video in enumerate(st.session_state.search_results['videos']):
-                st.session_state.search_results['videos'][i].update(summarize_and_analyze_article(video['snippet']))
-            
             # 검색 실행 시 요약 결과 초기화
             st.session_state.summary = ""
             if not st.session_state.total_results:
@@ -195,11 +173,9 @@ if search_button:
     else:
         st.warning("키워드를 입력해주세요.")
 
-# 검색 결과 표시 및 추천 콘텐츠 선정
+# 검색 결과 표시
 if source == "YouTube":
     st.subheader(f"검색된 총 YouTube 영상: {st.session_state.total_results}개")
-    recommended_contents = []
-    
     for video in st.session_state.search_results['videos']:
         col1, col2 = st.columns([1, 2])
         with col1:
@@ -208,41 +184,29 @@ if source == "YouTube":
             st.subheader(video['snippet']['title'])
             st.markdown(f"**채널명:** {video['snippet']['channelTitle']}")
             st.write(video['snippet']['description'])
-            
-            if 'recommendation' in video:
-                st.markdown(f"**추천 사유:** {video['recommendation']}")
-                st.markdown(f"**태그:** {video['tag']}, **중요도:** {video['importance']}")
-                
             video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
             st.markdown(f"[영상 보기]({video_url})")
+            
+            if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
+                with st.spinner("영상을 요약하는 중..."):
+                    summary = summarize_news_article(video['snippet'])
+                    st.session_state.summary = summary
         st.divider()
 
 elif source == "뉴스":
     st.subheader(f"검색된 총 뉴스 기사: {st.session_state.total_results}개")
-    recommended_contents = []
-    
     for i, article in enumerate(st.session_state.search_results['news']):
         st.subheader(article['title'])
         st.markdown(f"**출처:** {article['source']['name']}")
         st.write(article['description'])
-        
-        if 'recommendation' in article:
-            st.markdown(f"**추천 사유:** {article['recommendation']}")
-            st.markdown(f"**태그:** {article['tag']}, **중요도:** {article['importance']}")
-        
         st.markdown(f"[기사 보기]({article['url']})")
+        
+        if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_news_{i}"):
+            with st.spinner("기사를 요약하는 중..."):
+                summary = summarize_news_article(article)
+                st.session_state.summary = summary
+        
         st.divider()
-
-# 추천 콘텐츠를 중요도에 따라 정렬하고 상위 5개 표시
-recommended_contents.sort(key=lambda x: x["importance"], reverse=True)
-top_recommendations = recommended_contents[:5]
-
-st.subheader("투자에 도움이 될 만한 추천 콘텐츠 TOP 5")
-for i, recommendation in enumerate(top_recommendations):
-    st.write(f"**{i+1}. 요약 내용:** {recommendation['summary']}")
-    st.write(f"**추천 사유:** {recommendation['recommendation']}")
-    st.write(f"**태그:** {recommendation['tag']}, **중요도:** {recommendation['importance']}")
-    st.divider()
 
 # 요약 결과 표시 및 다운로드 버튼
 st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
