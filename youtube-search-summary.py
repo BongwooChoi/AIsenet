@@ -182,6 +182,12 @@ if search_button:
                 st.session_state.search_results = {'videos': [], 'news': news_articles}
                 st.session_state.total_results = total_news_results
             
+            # 검색된 모든 결과에 대해 요약 및 추천 분석 실행
+            for i, article in enumerate(st.session_state.search_results['news']):
+                st.session_state.search_results['news'][i].update(summarize_and_analyze_article(article))
+            for i, video in enumerate(st.session_state.search_results['videos']):
+                st.session_state.search_results['videos'][i].update(summarize_and_analyze_article(video['snippet']))
+            
             # 검색 실행 시 요약 결과 초기화
             st.session_state.summary = ""
             if not st.session_state.total_results:
@@ -203,15 +209,9 @@ if source == "YouTube":
             st.markdown(f"**채널명:** {video['snippet']['channelTitle']}")
             st.write(video['snippet']['description'])
             
-            if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
-                with st.spinner("영상을 요약하는 중..."):
-                    summary = summarize_and_analyze_article(video['snippet'])
-                    st.session_state.summary = summary["summary"]
-                    recommended_contents.append(summary)
-            
-            if 'recommendation' in st.session_state.summary:
-                st.markdown(f"**추천 사유:** {st.session_state.summary['recommendation']}")
-                st.markdown(f"**태그:** {st.session_state.summary['tag']}, **중요도:** {st.session_state.summary['importance']}")
+            if 'recommendation' in video:
+                st.markdown(f"**추천 사유:** {video['recommendation']}")
+                st.markdown(f"**태그:** {video['tag']}, **중요도:** {video['importance']}")
                 
             video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
             st.markdown(f"[영상 보기]({video_url})")
@@ -226,15 +226,9 @@ elif source == "뉴스":
         st.markdown(f"**출처:** {article['source']['name']}")
         st.write(article['description'])
         
-        if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_news_{i}"):
-            with st.spinner("기사를 요약하는 중..."):
-                summary = summarize_and_analyze_article(article)
-                st.session_state.summary = summary["summary"]
-                recommended_contents.append(summary)
-        
-        if 'recommendation' in st.session_state.summary:
-            st.markdown(f"**추천 사유:** {st.session_state.summary['recommendation']}")
-            st.markdown(f"**태그:** {st.session_state.summary['tag']}, **중요도:** {st.session_state.summary['importance']}")
+        if 'recommendation' in article:
+            st.markdown(f"**추천 사유:** {article['recommendation']}")
+            st.markdown(f"**태그:** {article['tag']}, **중요도:** {article['importance']}")
         
         st.markdown(f"[기사 보기]({article['url']})")
         st.divider()
