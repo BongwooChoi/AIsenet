@@ -98,7 +98,7 @@ with st.sidebar:
 
 # 검색 결과 저장용 세션 상태
 if 'search_results' not in st.session_state:
-    st.session_state.search_results = []
+    st.session_state.search_results = {'videos': [], 'news': []}
     st.session_state.total_results = 0
 
 # 요약 결과 저장용 세션 상태
