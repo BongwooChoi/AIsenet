@@ -3,33 +3,15 @@ import google.generativeai as genai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
 import os
-import time
 from datetime import datetime, timedelta
 import requests
-import yfinance as yf
-import threading
+
+# Streamlit 앱 설정
+st.set_page_config(page_title="AI YouTube & 뉴스 검색 및 요약", page_icon="📰", layout="wide")
 
 # API 키 설정
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
-
-# 지수 정보를 가져오는 함수
-def get_latest_index():
-    # Yahoo Finance에서 지수 데이터 가져오기
-    sp500 = yf.Ticker('^GSPC').history(period='1d')['Close'][0]
-    nasdaq = yf.Ticker('^IXIC').history(period='1d')['Close'][0]
-    dowjones = yf.Ticker('^DJI').history(period='1d')['Close'][0]
-    kospi = yf.Ticker('^KS11').history(period='1d')['Close'][0]
-    kosdaq = yf.Ticker('^KQ11').history(period='1d')['Close'][0]
-    
-    index_info = {
-        'S&P 500': f"{sp500:.2f}",
-        'Nasdaq': f"{nasdaq:.2f}",
-        'Dow Jones': f"{dowjones:.2f}",
-        'KOSPI': f"{kospi:.2f}",
-        'KOSDAQ': f"{kosdaq:.2f}"
-    }
-    return index_info
 
 # 뉴스 검색 함수 (Serp API 사용)
 def search_news(query, published_after, max_results=10):
@@ -58,6 +40,14 @@ def search_news(query, published_after, max_results=10):
     
     return unique_articles
 
+# 자막 가져오기 함수 (YouTube Transcript API 사용)
+def get_video_transcript(video_id):
+    try:
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
+        return ' '.join([entry['text'] for entry in transcript])
+    except Exception as e:
+        return None
+
 # 유튜브 검색 및 최신 순 정렬 함수
 def search_videos_with_transcript(query, published_after, max_results=10):
     request = youtube.search().list(
@@ -80,7 +70,6 @@ def search_videos_with_transcript(query, published_after, max_results=10):
     
     return videos_with_transcript[:max_results], len(response['items'])
 
-
 # 조회 기간 선택 함수
 def get_published_after(option):
     today = datetime.utcnow()
@@ -98,14 +87,6 @@ def get_published_after(option):
         return (today - timedelta(weeks=52)).isoformat("T") + "Z"
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
-
-# 자막 가져오기 함수 (YouTube Transcript API 사용)
-def get_video_transcript(video_id):
-    try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
-        return ' '.join([entry['text'] for entry in transcript])
-    except Exception as e:
-        return None
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
@@ -160,30 +141,9 @@ def download_summary_file(summary_text, file_name="summary.txt"):
         mime="text/plain"
     )
 
-# Streamlit 앱 설정
-st.set_page_config(page_title="AI YouTube & 뉴스 검색 및 요약", page_icon="📰", layout="wide")
-
 # Streamlit 앱
 st.title("📰 AI YouTube & 뉴스 검색 및 요약 서비스")
 st.markdown("이 서비스는 YouTube 영상과 뉴스(한국어 및 영어)를 검색하고 AI를 이용해 요약 정보를 제공합니다. 좌측 사이드바에 검색 조건을 입력하고 검색해보세요.")
-
-index_display = st.empty()
-def update_index_info():
-    while True:
-        latest_index = get_latest_index()
-        index_display.markdown(f"""
-        **📈 최신 지수 정보:**
-        - **S&P 500:** {latest_index['S&P 500']} 
-        - **Nasdaq:** {latest_index['Nasdaq']} 
-        - **Dow Jones:** {latest_index['Dow Jones']}
-        - **KOSPI:** {latest_index['KOSPI']}
-        - **KOSDAQ:** {latest_index['KOSDAQ']}
-        """, unsafe_allow_html=True)
-        time.sleep(60)  # 1분마다 업데이트
-
-# 지수 정보 업데이트 스레드 시작
-import threading
-threading.Thread(target=update_index_info, daemon=True).start()
 
 # 사이드바에 검색 조건 배치
 with st.sidebar:
