@@ -11,7 +11,7 @@ st.set_page_config(page_title="AI YouTube 검색 및 요약", page_icon="📺", 
 st.markdown("""
 <style>
 .scrollable-container {
-    height: 300px;
+    height: 500px; /* 높이를 500px로 증가 */
     overflow-y: auto;
     border: 1px solid #ddd;
     padding: 10px;
@@ -19,6 +19,26 @@ st.markdown("""
     background-color: #f0f0f0; /* 백그라운드 색상을 연한 회색으로 설정 */
     color: #000000; /* 텍스트 색상을 검정색으로 설정 */
 }
+
+/* 스크롤바 스타일 */
+.scrollable-container::-webkit-scrollbar {
+    width: 12px;
+}
+
+.scrollable-container::-webkit-scrollbar-thumb {
+    background-color: #888; /* 스크롤바의 색상 */
+    border-radius: 10px;
+    border: 3px solid #f0f0f0; /* 스크롤바와 트랙 사이의 간격 */
+}
+
+.scrollable-container::-webkit-scrollbar-thumb:hover {
+    background-color: #555; /* 스크롤바에 마우스를 올렸을 때 색상 */
+}
+
+.scrollable-container::-webkit-scrollbar-track {
+    background-color: #f0f0f0; /* 스크롤바 트랙 색상 */
+}
+
 .fixed-footer {
     position: fixed;
     bottom: 0;
