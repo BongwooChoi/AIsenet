@@ -14,9 +14,9 @@ genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
 
 # 뉴스 검색 함수 (Google News API 사용)
-def search_news(query, published_after, max_results=10):
+def search_news(query, published_after, max_results=20):
     api_key = st.secrets["GOOGLE_NEWS_API_KEY"]
-    url = f"https://newsapi.org/v2/everything?q={query}&from={published_after}&language=ko&sortBy=publishedAt&apiKey={api_key}&pageSize={max_results * 2}"
+    url = f"https://newsapi.org/v2/everything?q={query}&from={published_after}&sortBy=publishedAt&apiKey={api_key}&pageSize={max_results * 2}"
     
     response = requests.get(url)
     news_data = response.json()
@@ -89,7 +89,15 @@ def get_published_after(option):
 def summarize_news_article(article):
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
-        prompt = f"다음 뉴스 기사의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {article['title']}\n\n내용: {article['content']}"
+        prompt = f"""
+다음 뉴스 기사의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 
+원문이 영어인 경우에도 최종 결과는 반드시 한국어로 작성해야 합니다.
+또한, 요약 마지막에 원문의 언어(한국어 또는 영어)를 명시해 주세요.
+
+제목: {article['title']}
+
+내용: {article['content']}
+"""
         response = model.generate_content(prompt)
 
         if not response or not response.parts:
@@ -112,7 +120,7 @@ def download_summary_file(summary_text, file_name="summary.txt"):
 
 # Streamlit 앱
 st.title("📰 AI YouTube & 뉴스 검색 및 요약 서비스")
-st.markdown("이 서비스는 YouTube 영상과 뉴스를 검색하고 AI를 이용해 요약 정보를 제공합니다. 좌측 사이드바에 검색 조건을 입력하고 검색해보세요.")
+st.markdown("이 서비스는 YouTube 영상과 뉴스(한국어 및 영어)를 검색하고 AI를 이용해 요약 정보를 제공합니다. 좌측 사이드바에 검색 조건을 입력하고 검색해보세요.")
 
 # 사이드바에 검색 조건 배치
 with st.sidebar:
@@ -150,7 +158,7 @@ if search_button:
             
             elif source == "뉴스":
                 # 뉴스 검색
-                news_articles = search_news(keywords, published_after, max_results=10)
+                news_articles = search_news(keywords, published_after, max_results=20)
                 total_news_results = len(news_articles)
                 st.session_state.search_results = {'videos': [], 'news': news_articles}
                 st.session_state.total_results = total_news_results
@@ -178,7 +186,7 @@ if source == "YouTube":
             
             if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
                 with st.spinner("영상을 요약하는 중..."):
-                    summary = summarize_news_article(video['snippet']['title'])
+                    summary = summarize_news_article(video['snippet'])
                     st.session_state.summary = summary
         st.divider()
 
