@@ -13,22 +13,28 @@ st.set_page_config(page_title="AI YouTube & 뉴스 검색 및 요약", page_icon
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
 
-# 뉴스 검색 함수 (Google News API 사용)
+# 뉴스 검색 함수 (Serp API 사용)
 def search_news(query, published_after, max_results=10):
-    api_key = st.secrets["GOOGLE_NEWS_API_KEY"]
-    url = f"https://newsapi.org/v2/everything?q={query}&from={published_after}&sortBy=relevancy&apiKey={api_key}&pageSize={max_results * 2}"
+    api_key = st.secrets["SERP_API_KEY"]
+    url = f"https://serpapi.com/search.json?q={query}&tbm=nws&api_key={api_key}&num={max_results * 2}&sort=date"
     
     response = requests.get(url)
     news_data = response.json()
-    articles = news_data.get('articles', [])
+    articles = news_data.get('news_results', [])
     
     # 중복 제거 (URL 기준)
     unique_articles = []
     seen_urls = set()
     for article in articles:
-        if article['url'] not in seen_urls:
-            unique_articles.append(article)
-            seen_urls.add(article['url'])
+        if article['link'] not in seen_urls:
+            unique_articles.append({
+                'title': article.get('title', ''),
+                'source': {'name': article.get('source', '')},
+                'description': article.get('snippet', ''),
+                'url': article.get('link', ''),
+                'content': article.get('snippet', '')  # Serp API에는 content가 없으므로 snippet으로 대체
+            })
+            seen_urls.add(article['link'])
         if len(unique_articles) == max_results:
             break
     
