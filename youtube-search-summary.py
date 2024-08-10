@@ -88,6 +88,7 @@ st.markdown("이 서비스는 YouTube 영상과 뉴스를 검색하고 AI를 이
 # 사이드바에 검색 조건 배치
 with st.sidebar:
     st.header("검색 조건")
+    source = st.radio("검색할 소스를 선택하세요:", ("YouTube", "뉴스"))
     keyword1 = st.text_input("첫 번째 키워드", key="keyword1")
     keyword2 = st.text_input("두 번째 키워드 (선택 사항)", key="keyword2")
     keyword3 = st.text_input("세 번째 키워드 (선택 사항)", key="keyword3")
@@ -109,56 +110,57 @@ if 'summary' not in st.session_state:
 if search_button:
     keywords = " ".join(filter(None, [keyword1, keyword2, keyword3]))
     if keywords:
-        with st.spinner("영상을 검색하고 자막을 확인하는 중..."):
+        with st.spinner(f"{source}를 검색하고 있습니다..."):
             published_after = get_published_after(period)
             
-            # YouTube 영상 검색
-            videos, total_video_results = search_videos_with_transcript(keywords, published_after)
+            if source == "YouTube":
+                # YouTube 영상 검색
+                videos, total_video_results = search_videos_with_transcript(keywords, published_after)
+                st.session_state.search_results = {'videos': videos, 'news': []}
+                st.session_state.total_results = total_video_results
             
-            # 뉴스 검색
-            news_articles = search_news(keywords, published_after)
-            total_news_results = len(news_articles)
+            elif source == "뉴스":
+                # 뉴스 검색
+                news_articles = search_news(keywords, published_after)
+                total_news_results = len(news_articles)
+                st.session_state.search_results = {'videos': [], 'news': news_articles}
+                st.session_state.total_results = total_news_results
             
-            # 결과 통합
-            st.session_state.search_results = {
-                'videos': videos,
-                'news': news_articles
-            }
-            st.session_state.total_results = total_video_results + total_news_results
             # 검색 실행 시 요약 결과 초기화
             st.session_state.summary = ""
-            if not (videos or news_articles):
-                st.warning("검색 결과를 찾을 수 없습니다. 다른 키워드로 검색해보세요.")
+            if not st.session_state.total_results:
+                st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 키워드로 검색해보세요.")
     else:
         st.warning("키워드를 입력해주세요.")
 
 # 검색 결과 표시
-st.subheader(f"검색된 총 결과: {st.session_state.total_results}개 (영상 {len(st.session_state.search_results['videos'])}개, 뉴스 {len(st.session_state.search_results['news'])}개)")
-st.markdown("### YouTube 영상 결과")
-for video in st.session_state.search_results['videos']:
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        st.image(video['snippet']['thumbnails']['medium']['url'], use_column_width=True)
-    with col2:
-        st.subheader(video['snippet']['title'])
-        st.markdown(f"**채널명:** {video['snippet']['channelTitle']}")
-        st.write(video['snippet']['description'])
-        video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
-        st.markdown(f"[영상 보기]({video_url})")
-        
-        if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
-            with st.spinner("영상을 요약하는 중..."):
-                summary = summarize_video(video['id']['videoId'], video['snippet']['title'])
-                st.session_state.summary = summary
-    st.divider()
+if source == "YouTube":
+    st.subheader(f"검색된 총 YouTube 영상: {st.session_state.total_results}개")
+    for video in st.session_state.search_results['videos']:
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.image(video['snippet']['thumbnails']['medium']['url'], use_column_width=True)
+        with col2:
+            st.subheader(video['snippet']['title'])
+            st.markdown(f"**채널명:** {video['snippet']['channelTitle']}")
+            st.write(video['snippet']['description'])
+            video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
+            st.markdown(f"[영상 보기]({video_url})")
+            
+            if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
+                with st.spinner("영상을 요약하는 중..."):
+                    summary = summarize_video(video['id']['videoId'], video['snippet']['title'])
+                    st.session_state.summary = summary
+        st.divider()
 
-st.markdown("### 뉴스 기사 결과")
-for article in st.session_state.search_results['news']:
-    st.subheader(article['title'])
-    st.markdown(f"**출처:** {article['source']['name']}")
-    st.write(article['description'])
-    st.markdown(f"[기사 보기]({article['url']})")
-    st.divider()
+elif source == "뉴스":
+    st.subheader(f"검색된 총 뉴스 기사: {st.session_state.total_results}개")
+    for article in st.session_state.search_results['news']:
+        st.subheader(article['title'])
+        st.markdown(f"**출처:** {article['source']['name']}")
+        st.write(article['description'])
+        st.markdown(f"[기사 보기]({article['url']})")
+        st.divider()
 
 # 요약 결과 표시 및 다운로드 버튼
 st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
