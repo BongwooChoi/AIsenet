@@ -184,9 +184,11 @@ if source == "YouTube":
             video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
             st.markdown(f"[영상 보기]({video_url})")
             
-            if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
+            video_id = video['id']['videoId']
+            video_title = video['snippet']['title']
+            if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video_id}"):
                 with st.spinner("영상을 요약하는 중..."):
-                    summary = summarize_news_article(video['snippet'])
+                    summary = summarize_video(video_id, video_title)
                     st.session_state.summary = summary
         st.divider()
 
