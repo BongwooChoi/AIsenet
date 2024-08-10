@@ -66,8 +66,6 @@ def search_videos_with_transcript(query, published_after, max_results=5):
         if get_video_transcript(video_id):
             videos_with_transcript.append(item)
     
-    videos_with_transcript.sort(key=lambda x: x['snippet']['publishedAt'], reverse=True)
-    
     return videos_with_transcript[:max_results], len(response['items'])
 
 # 조회 기간 선택 함수
