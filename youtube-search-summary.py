@@ -138,7 +138,7 @@ for video in st.session_state.search_results:
         st.image(video['snippet']['thumbnails']['medium']['url'], use_column_width=True)
     with col2:
         st.subheader(video['snippet']['title'])
-        st.write(f"채널명: {video['snippet']['channelTitle']}")
+        st.markdown(f"**채널명:** {video['snippet']['channelTitle']}")  # 채널명에 볼드 효과 추가
         st.write(video['snippet']['description'])
         video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
         st.markdown(f"[영상 보기]({video_url})")
