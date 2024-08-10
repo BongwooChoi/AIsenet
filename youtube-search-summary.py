@@ -15,7 +15,7 @@ youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
 
 # 뉴스 검색 함수 (Google News API 사용 예시)
 def search_news(query, published_after, max_results=5):
-    api_key = st.secrets["NEWS_API_KEY"]
+    api_key = st.secrets["GOOGLE_NEWS_API_KEY"]
     url = f"https://newsapi.org/v2/everything?q={query}&from={published_after}&sortBy=relevance&apiKey={api_key}&pageSize={max_results}"
     response = requests.get(url)
     news_data = response.json()
