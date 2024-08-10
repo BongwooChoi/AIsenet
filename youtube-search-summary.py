@@ -7,51 +7,6 @@ import os
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI YouTube 검색 및 요약", page_icon="📺", layout="wide")
 
-# CSS를 사용하여 스크롤 가능한 컨테이너 스타일 정의 및 하단 고정 스타일 정의
-st.markdown("""
-<style>
-.scrollable-container {
-    height: 500px; /* 높이를 500px로 증가 */
-    overflow-y: auto;
-    border: 1px solid #ddd;
-    padding: 10px;
-    border-radius: 5px;
-    background-color: #f0f0f0; /* 백그라운드 색상을 연한 회색으로 설정 */
-    color: #000000; /* 텍스트 색상을 검정색으로 설정 */
-}
-
-/* 스크롤바 스타일 */
-.scrollable-container::-webkit-scrollbar {
-    width: 12px;
-}
-
-.scrollable-container::-webkit-scrollbar-thumb {
-    background-color: #1E90FF; /* 스크롤바의 색상을 선명한 파란색으로 설정 */
-    border-radius: 10px;
-    border: 3px solid #f0f0f0; /* 스크롤바와 트랙 사이의 간격 */
-}
-
-.scrollable-container::-webkit-scrollbar-thumb:hover {
-    background-color: #555; /* 스크롤바에 마우스를 올렸을 때 색상 */
-}
-
-.scrollable-container::-webkit-scrollbar-track {
-    background-color: #f0f0f0; /* 스크롤바 트랙 색상 */
-}
-
-.fixed-footer {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    background-color: #f0f0f0; /* 백그라운드 색상을 연한 회색으로 설정 */
-    color: #000000; /* 텍스트 색상을 검정색으로 설정 */
-    padding: 10px;
-    border-top: 1px solid #ddd;
-    z-index: 9999;
-}
-</style>
-""", unsafe_allow_html=True)
-
 # API 키 설정
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
@@ -106,6 +61,15 @@ def summarize_video(video_id, video_title):
         return summary
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
+
+# 파일로 다운로드할 수 있는 함수
+def download_summary_file(summary_text, file_name="summary.txt"):
+    st.download_button(
+        label="요약 보고서 다운로드",
+        data=summary_text,
+        file_name=file_name,
+        mime="text/plain"
+    )
 
 # Streamlit 앱
 st.title("📺 AI YouTube 맞춤 검색 및 요약 서비스")
@@ -167,14 +131,13 @@ for video in st.session_state.search_results:
                 st.session_state.summary = summary
     st.divider()
 
-# 요약 결과 표시
-st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
+# 요약 결과 표시 및 다운로드 버튼
 st.subheader("요약 보고서")
 if st.session_state.summary:
     st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
+    download_summary_file(st.session_state.summary)
 else:
     st.write("영상을 선택하고 요약 보고서 요청 버튼을 클릭하세요.")
-st.markdown('</div>', unsafe_allow_html=True)
 
 # 주의사항 및 안내
 st.sidebar.markdown("---")
