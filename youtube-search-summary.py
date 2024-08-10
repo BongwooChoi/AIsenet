@@ -85,6 +85,26 @@ def get_published_after(option):
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
+# YouTube 영상 요약 함수
+def summarize_video(video_id, video_title):
+    try:
+        transcript = get_video_transcript(video_id)
+        if not transcript:
+            return "자막을 가져올 수 없어 요약할 수 없습니다."
+
+        model = genai.GenerativeModel('gemini-1.5-pro')
+        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\n{transcript}"
+        response = model.generate_content(prompt)
+
+        if not response or not response.parts:
+            feedback = response.prompt_feedback if response else "No response received."
+            return f"요약 중 오류가 발생했습니다: {feedback}"
+
+        summary = response.text
+        return summary
+    except Exception as e:
+        return f"요약 중 오류가 발생했습니다: {str(e)}"
+
 # 뉴스 기사 요약 함수
 def summarize_news_article(article):
     try:
