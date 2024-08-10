@@ -4,7 +4,7 @@ from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
 import os
 from datetime import datetime, timedelta
-import requests  # 뉴스 검색을 위해 사용
+import requests
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI YouTube & 뉴스 검색 및 요약", page_icon="📰", layout="wide")
@@ -13,13 +13,29 @@ st.set_page_config(page_title="AI YouTube & 뉴스 검색 및 요약", page_icon
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
 
-# 뉴스 검색 함수 (Google News API 사용 예시)
-def search_news(query, published_after, max_results=5):
+# 뉴스 검색 함수 (Google News API 사용)
+def search_news(query, published_after, max_results=10):
     api_key = st.secrets["GOOGLE_NEWS_API_KEY"]
-    url = f"https://newsapi.org/v2/everything?q={query}&from={published_after}&sortBy=relevance&apiKey={api_key}&pageSize={max_results}"
+    url = f"https://newsapi.org/v2/everything?q={query}&from={published_after}&language=ko&sortBy=publishedAt&apiKey={api_key}&pageSize={max_results * 2}"
+    
     response = requests.get(url)
     news_data = response.json()
-    return news_data.get('articles', [])
+    articles = news_data.get('articles', [])
+    
+    # 결과를 출판일 기준으로 정렬 (최신순)
+    sorted_articles = sorted(articles, key=lambda x: x['publishedAt'], reverse=True)
+    
+    # 중복 제거 (URL 기준)
+    unique_articles = []
+    seen_urls = set()
+    for article in sorted_articles:
+        if article['url'] not in seen_urls:
+            unique_articles.append(article)
+            seen_urls.add(article['url'])
+        if len(unique_articles) == max_results:
+            break
+    
+    return unique_articles
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id):
@@ -31,25 +47,22 @@ def get_video_transcript(video_id):
 
 # 유튜브 검색 및 최신 순 정렬 함수
 def search_videos_with_transcript(query, published_after, max_results=5):
-    # 관련성 높은 순으로 검색
     request = youtube.search().list(
         q=query,
         type='video',
         part='id,snippet',
-        order='relevance',  # 관련성 높은 순으로 정렬
+        order='relevance',
         publishedAfter=published_after,
-        maxResults=max_results * 2  # 더 많은 결과를 요청해 이후 최신 순으로 필터링
+        maxResults=max_results * 2
     )
     response = request.execute()
 
-    # 검색 결과를 최신 순으로 정렬
     videos_with_transcript = []
     for item in response['items']:
         video_id = item['id']['videoId']
         if get_video_transcript(video_id):
             videos_with_transcript.append(item)
     
-    # 최신 순으로 정렬
     videos_with_transcript.sort(key=lambda x: x['snippet']['publishedAt'], reverse=True)
     
     return videos_with_transcript[:max_results], len(response['items'])
@@ -91,7 +104,7 @@ def summarize_news_article(article):
 # 파일로 다운로드할 수 있는 함수
 def download_summary_file(summary_text, file_name="summary.txt"):
     st.download_button(
-        label="다운로드",
+        label="요약 보고서 다운로드",
         data=summary_text,
         file_name=file_name,
         mime="text/plain"
@@ -137,7 +150,7 @@ if search_button:
             
             elif source == "뉴스":
                 # 뉴스 검색
-                news_articles = search_news(keywords, published_after)
+                news_articles = search_news(keywords, published_after, max_results=10)
                 total_news_results = len(news_articles)
                 st.session_state.search_results = {'videos': [], 'news': news_articles}
                 st.session_state.total_results = total_news_results
