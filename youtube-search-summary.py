@@ -72,6 +72,22 @@ def get_published_after(option):
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
+# 뉴스 기사 요약 함수
+def summarize_news_article(article):
+    try:
+        model = genai.GenerativeModel('gemini-1.5-pro')
+        prompt = f"다음 뉴스 기사의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {article['title']}\n\n내용: {article['content']}"
+        response = model.generate_content(prompt)
+
+        if not response or not response.parts:
+            feedback = response.prompt_feedback if response else "No response received."
+            return f"요약 중 오류가 발생했습니다: {feedback}"
+
+        summary = response.text
+        return summary
+    except Exception as e:
+        return f"요약 중 오류가 발생했습니다: {str(e)}"
+
 # 파일로 다운로드할 수 있는 함수
 def download_summary_file(summary_text, file_name="summary.txt"):
     st.download_button(
@@ -149,17 +165,23 @@ if source == "YouTube":
             
             if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video['id']['videoId']}"):
                 with st.spinner("영상을 요약하는 중..."):
-                    summary = summarize_video(video['id']['videoId'], video['snippet']['title'])
+                    summary = summarize_news_article(video['snippet']['title'])
                     st.session_state.summary = summary
         st.divider()
 
 elif source == "뉴스":
     st.subheader(f"검색된 총 뉴스 기사: {st.session_state.total_results}개")
-    for article in st.session_state.search_results['news']:
+    for i, article in enumerate(st.session_state.search_results['news']):
         st.subheader(article['title'])
         st.markdown(f"**출처:** {article['source']['name']}")
         st.write(article['description'])
         st.markdown(f"[기사 보기]({article['url']})")
+        
+        if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_news_{i}"):
+            with st.spinner("기사를 요약하는 중..."):
+                summary = summarize_news_article(article)
+                st.session_state.summary = summary
+        
         st.divider()
 
 # 요약 결과 표시 및 다운로드 버튼
