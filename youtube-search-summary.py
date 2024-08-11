@@ -56,7 +56,7 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         keywords = " OR ".join(FINANCE_DOMAINS[domain])
         query = f"({keywords}) {additional_query}".strip()
         
-        st.write(f"검색 쿼리: {query}")  # 디버깅용 로그
+        # st.write(f"검색 쿼리: {query}")  # 디버깅용 로그
         
         request = youtube.search().list(
             q=query,
