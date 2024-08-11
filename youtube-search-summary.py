@@ -275,7 +275,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # 주의사항 및 안내
 st.sidebar.markdown("---")
 st.sidebar.markdown("**안내사항:**")
-st.sidebar.markdown("- 이 서비스는 Google AI Studio API, YouTube Data API, Serp API를 사용합니다.")
+st.sidebar.markdown("- 이 서비스는 Google AI Studio API, YouTube Data API, Google Search API를 사용합니다.")
 st.sidebar.markdown("- 검색 결과의 품질과 복잡도에 따라 처리 시간이 달라질 수 있습니다.")
 st.sidebar.markdown("- 저작권 보호를 위해 개인적인 용도로만 사용해주세요.")
 st.sidebar.markdown("- 제공되는 정보는 참고용이며, 투자 결정에 직접적으로 사용하지 마세요.")
