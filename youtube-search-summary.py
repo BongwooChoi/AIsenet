@@ -139,7 +139,7 @@ def analyze_news_articles(articles):
         all_articles = "\n\n".join([f"제목: {article['title']}\n내용: {article['content']}" for article in articles])
         
         prompt = f"""
-다음은 특정 주제에 관한 여러 뉴스 기사의 제목과 내용입니다. 이 기사들을 종합적으로 분석하여 다음 형식의 보고서를 작성해주세요:
+다음은 특정 주제에 관한 여러 뉴스 기사의 제목과 내용입니다. 이 기사들을 종합적으로 분석하여 가독성 있는 한 페이지의 보고서를 다음 형식을 참고하여 작성해주세요:
 
 1. 주요 이슈 요약 (3-5개의 핵심 포인트)
 2. 상세 분석 (각 주요 이슈에 대한 심층 설명)
