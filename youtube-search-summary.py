@@ -149,6 +149,26 @@ def download_summary_file(summary_text, file_name="summary.txt"):
         mime="text/plain"
     )
 
+# 자바스크립트를 이용한 클립보드 복사 함수
+def copy_to_clipboard():
+    st.components.v1.html(
+        """
+        <script>
+        function copyToClipboard() {
+            const text = document.getElementById('summary-text').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('클립보드에 복사되었습니다!');
+            }).catch(err => {
+                console.error('클립보드 복사 실패:', err);
+                alert('클립보드 복사에 실패했습니다. 수동으로 복사해주세요.');
+            });
+        }
+        </script>
+        <button onclick="copyToClipboard()">복사하기</button>
+        """,
+        height=50
+    )
+
 # Streamlit 앱
 st.title("📰 AI YouTube & 뉴스 검색 및 요약 서비스")
 st.markdown("이 서비스는 YouTube 영상과 뉴스를 검색하고 AI를 이용해 요약 정보를 제공합니다. 좌측 사이드바에 검색 조건을 입력하고 검색해보세요.")
@@ -238,7 +258,7 @@ elif source == "뉴스":
 
 # 요약 결과 표시 및 다운로드 버튼
 st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
-col1, col2 = st.columns([0.85, 0.15])  # 열을 비율로 분할
+col1, col2, col3 = st.columns([0.6, 0.2, 0.2])  # 열을 비율로 분할
 with col1:
     if source == "YouTube":
         st.subheader("영상 요약 보고서")
@@ -247,9 +267,12 @@ with col1:
 with col2:
     if st.session_state.summary:
         download_summary_file(st.session_state.summary)
-
+with col3:
+    if st.session_state.summary:
+        copy_to_clipboard()
+    
 if st.session_state.summary:
-    st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div id="summary-text" class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
 else:
     if source == "YouTube":
         st.write("검색 결과에서 요약할 영상을 선택하세요.")
