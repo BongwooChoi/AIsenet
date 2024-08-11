@@ -5,7 +5,9 @@ from youtube_transcript_api import YouTubeTranscriptApi
 import os
 from datetime import datetime, timedelta
 import requests
-import pyperclip
+
+# Streamlit 앱 설정
+st.set_page_config(page_title="AI YouTube & 뉴스 검색 및 요약", page_icon="📰", layout="wide")
 
 # API 키 설정
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
@@ -37,6 +39,14 @@ def search_news(query, published_after, max_results=10):
             break
     
     return unique_articles
+
+# 자막 가져오기 함수 (YouTube Transcript API 사용)
+def get_video_transcript(video_id):
+    try:
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
+        return ' '.join([entry['text'] for entry in transcript])
+    except Exception as e:
+        return None
 
 # 유튜브 검색 및 최신 순 정렬 함수
 def search_videos_with_transcript(query, published_after, max_results=10):
@@ -77,14 +87,6 @@ def get_published_after(option):
         return (today - timedelta(weeks=52)).isoformat("T") + "Z"
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
-
-# 자막 가져오기 함수 (YouTube Transcript API 사용)
-def get_video_transcript(video_id):
-    try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
-        return ' '.join([entry['text'] for entry in transcript])
-    except Exception as e:
-        return None
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
@@ -147,150 +149,117 @@ def download_summary_file(summary_text, file_name="summary.txt"):
         mime="text/plain"
     )
 
-# 클립보드에 복사하는 함수
-def copy_to_clipboard(text):
-    pyperclip.copy(text)
-
-# 소셜 미디어 공유 URL 생성 함수
-def get_share_urls(text):
-    encoded_text = requests.utils.quote(text)
-    return {
-        "twitter": f"https://twitter.com/intent/tweet?text={encoded_text}",
-        "facebook": f"https://www.facebook.com/sharer/sharer.php?u={encoded_text}",
-        "linkedin": f"https://www.linkedin.com/shareArticle?mini=true&url={encoded_text}"
-    }
-
-# Streamlit 앱 설정
-st.set_page_config(page_title="AI YouTube & 뉴스 검색 및 요약", page_icon="📰", layout="wide")
-
 # Streamlit 앱
-def main():
-    
-    st.title("📰 AI YouTube & 뉴스 검색 및 요약 서비스")
-    st.markdown("이 서비스는 YouTube 영상과 뉴스를 검색하고 AI를 이용해 요약 정보를 제공합니다. 좌측 사이드바에 검색 조건을 입력하고 검색해보세요.")
+st.title("📰 AI YouTube & 뉴스 검색 및 요약 서비스")
+st.markdown("이 서비스는 YouTube 영상과 뉴스를 검색하고 AI를 이용해 요약 정보를 제공합니다. 좌측 사이드바에 검색 조건을 입력하고 검색해보세요.")
 
 # 사이드바에 검색 조건 배치
-    with st.sidebar:
-        st.header("검색 조건")
-        source = st.radio("검색할 소스를 선택하세요:", ("YouTube", "뉴스"))
-        keyword1 = st.text_input("첫 번째 키워드", key="keyword1")
-        keyword2 = st.text_input("두 번째 키워드 (선택 사항)", key="keyword2")
-        keyword3 = st.text_input("세 번째 키워드 (선택 사항)", key="keyword3")
+with st.sidebar:
+    st.header("검색 조건")
+    source = st.radio("검색할 소스를 선택하세요:", ("YouTube", "뉴스"))
+    keyword1 = st.text_input("첫 번째 키워드", key="keyword1")
+    keyword2 = st.text_input("두 번째 키워드 (선택 사항)", key="keyword2")
+    keyword3 = st.text_input("세 번째 키워드 (선택 사항)", key="keyword3")
 
-        period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
+    period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
 
-        search_button = st.button("검색 실행")
+    search_button = st.button("검색 실행")
 
 # 검색 결과 저장용 세션 상태
-    if 'search_results' not in st.session_state:
-        st.session_state.search_results = {'videos': [], 'news': []}
-        st.session_state.total_results = 0
+if 'search_results' not in st.session_state:
+    st.session_state.search_results = {'videos': [], 'news': []}
+    st.session_state.total_results = 0
 
 # 요약 결과 저장용 세션 상태
-    if 'summary' not in st.session_state:
-        st.session_state.summary = ""
+if 'summary' not in st.session_state:
+    st.session_state.summary = ""
 
 # 검색 실행
-    if search_button:
-        keywords = " ".join(filter(None, [keyword1, keyword2, keyword3]))
-        if keywords:
-            with st.spinner(f"{source}를 검색하고 있습니다..."):
-                published_after = get_published_after(period)
+if search_button:
+    keywords = " ".join(filter(None, [keyword1, keyword2, keyword3]))
+    if keywords:
+        with st.spinner(f"{source}를 검색하고 있습니다..."):
+            published_after = get_published_after(period)
             
-                if source == "YouTube":
-                    # YouTube 영상 검색
-                    videos, total_video_results = search_videos_with_transcript(keywords, published_after)
-                    st.session_state.search_results = {'videos': videos, 'news': []}
-                    st.session_state.total_results = total_video_results
-                    st.session_state.summary = ""  # YouTube 검색 시 요약 초기화
+            if source == "YouTube":
+                # YouTube 영상 검색
+                videos, total_video_results = search_videos_with_transcript(keywords, published_after)
+                st.session_state.search_results = {'videos': videos, 'news': []}
+                st.session_state.total_results = total_video_results
+                st.session_state.summary = ""  # YouTube 검색 시 요약 초기화
             
-                elif source == "뉴스":
-                    # 뉴스 검색 및 자동 분석
-                    news_articles = search_news(keywords, published_after, max_results=10)
-                    total_news_results = len(news_articles)
-                    st.session_state.search_results = {'videos': [], 'news': news_articles}
-                    st.session_state.total_results = total_news_results
+            elif source == "뉴스":
+                # 뉴스 검색 및 자동 분석
+                news_articles = search_news(keywords, published_after, max_results=10)
+                total_news_results = len(news_articles)
+                st.session_state.search_results = {'videos': [], 'news': news_articles}
+                st.session_state.total_results = total_news_results
                 
-                    # 뉴스 기사 자동 분석
-                    with st.spinner("뉴스 기사를 종합 분석 중입니다..."):
-                        st.session_state.summary = analyze_news_articles(news_articles)
+                # 뉴스 기사 자동 분석
+                with st.spinner("뉴스 기사를 종합 분석 중입니다..."):
+                    st.session_state.summary = analyze_news_articles(news_articles)
             
-                if not st.session_state.total_results:
-                    st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 키워드로 검색해보세요.")
-        else:
-            st.warning("키워드를 입력해주세요.")
+            if not st.session_state.total_results:
+                st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 키워드로 검색해보세요.")
+    else:
+        st.warning("키워드를 입력해주세요.")
 
 # 검색 결과 표시
-    if source == "YouTube":
-        st.subheader(f"검색된 총 YouTube 영상: {st.session_state.total_results}개")
-        for video in st.session_state.search_results['videos']:
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                st.image(video['snippet']['thumbnails']['medium']['url'], use_column_width=True)
-            with col2:
-                st.subheader(video['snippet']['title'])
-                st.markdown(f"**채널명:** {video['snippet']['channelTitle']}")
-                st.write(video['snippet']['description'])
-                video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
-                st.markdown(f"[영상 보기]({video_url})")
+if source == "YouTube":
+    st.subheader(f"검색된 총 YouTube 영상: {st.session_state.total_results}개")
+    for video in st.session_state.search_results['videos']:
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.image(video['snippet']['thumbnails']['medium']['url'], use_column_width=True)
+        with col2:
+            st.subheader(video['snippet']['title'])
+            st.markdown(f"**채널명:** {video['snippet']['channelTitle']}")
+            st.write(video['snippet']['description'])
+            video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
+            st.markdown(f"[영상 보기]({video_url})")
             
-                video_id = video['id']['videoId']
-                video_title = video['snippet']['title']
-                if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video_id}"):
-                    with st.spinner("영상을 요약하는 중..."):
-                        summary = summarize_video(video_id, video_title)
-                        st.session_state.summary = summary
-            st.divider()
+            video_id = video['id']['videoId']
+            video_title = video['snippet']['title']
+            if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video_id}"):
+                with st.spinner("영상을 요약하는 중..."):
+                    summary = summarize_video(video_id, video_title)
+                    st.session_state.summary = summary
+        st.divider()
 
-    elif source == "뉴스":
-        st.subheader(f"검색된 총 뉴스 기사: {st.session_state.total_results}개")
-        for i, article in enumerate(st.session_state.search_results['news']):
-            st.subheader(article['title'])
-            st.markdown(f"**출처:** {article['source']['name']}")
-            st.write(article['description'])
-            st.markdown(f"[기사 보기]({article['url']})")
+elif source == "뉴스":
+    st.subheader(f"검색된 총 뉴스 기사: {st.session_state.total_results}개")
+    for i, article in enumerate(st.session_state.search_results['news']):
+        st.subheader(article['title'])
+        st.markdown(f"**출처:** {article['source']['name']}")
+        st.write(article['description'])
+        st.markdown(f"[기사 보기]({article['url']})")
         
-            st.divider()
+        st.divider()
 
-# 요약 결과 표시 및 공유 옵션
-    st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
-    col1, col2, col3, col4, col5 = st.columns([0.4, 0.15, 0.15, 0.15, 0.15])  # 열을 비율로 분할
-    with col1:
-        if source == "YouTube":
-            st.subheader("영상 요약 보고서")
-        else:
-            st.subheader("뉴스 종합 분석 보고서")
-    with col2:
-        if st.session_state.summary:
-            download_summary_file(st.session_state.summary)
-    with col3:
-        if st.session_state.summary:
-            if st.button("클립보드에 복사"):
-                copy_to_clipboard(st.session_state.summary)
-                st.success("클립보드에 복사되었습니다!")
-    
-    if st.session_state.summary:
-        share_urls = get_share_urls(st.session_state.summary[:280])  # 트위터 글자 수 제한
-        with col4:
-            st.markdown(f"[Twitter에 공유]({share_urls['twitter']})")
-        with col5:
-            st.markdown(f"[Facebook에 공유]({share_urls['facebook']})")
-
-    if st.session_state.summary:
-        st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
+# 요약 결과 표시 및 다운로드 버튼
+st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
+col1, col2 = st.columns([0.85, 0.15])  # 열을 비율로 분할
+with col1:
+    if source == "YouTube":
+        st.subheader("영상 요약 보고서")
     else:
-        if source == "YouTube":
-            st.write("검색 결과에서 요약할 영상을 선택하세요.")
-        else:
-            st.write("뉴스 검색 결과가 없습니다.")
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.subheader("뉴스 종합 분석 보고서")
+with col2:
+    if st.session_state.summary:
+        download_summary_file(st.session_state.summary)
+
+if st.session_state.summary:
+    st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
+else:
+    if source == "YouTube":
+        st.write("검색 결과에서 요약할 영상을 선택하세요.")
+    else:
+        st.write("뉴스 검색 결과가 없습니다.")
+st.markdown('</div>', unsafe_allow_html=True)
 
 # 주의사항 및 안내
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("**안내사항:**")
-    st.sidebar.markdown("- 이 서비스는 Google AI Studio API, YouTube Data API, Google News API를 사용합니다.")
-    st.sidebar.markdown("- 검색 결과의 품질과 복잡도에 따라 처리 시간이 달라질 수 있습니다.")
-    st.sidebar.markdown("- 저작권 보호를 위해 개인적인 용도로만 사용해주세요.")
-
-if __name__ == "__main__":
-    main()
+st.sidebar.markdown("---")
+st.sidebar.markdown("**안내사항:**")
+st.sidebar.markdown("- 이 서비스는 Google AI Studio API, YouTube Data API, Google News API를 사용합니다.")
+st.sidebar.markdown("- 검색 결과의 품질과 복잡도에 따라 처리 시간이 달라질 수 있습니다.")
+st.sidebar.markdown("- 저작권 보호를 위해 개인적인 용도로만 사용해주세요.")
