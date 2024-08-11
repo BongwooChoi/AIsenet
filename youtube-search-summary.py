@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import requests
 
 # Streamlit 앱 설정
-st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="💹", layout="wide")
+st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="📈", layout="wide")
 
 # API 키 설정
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
@@ -50,14 +50,6 @@ def search_news(domain, additional_query, published_after, max_results=10):
     
     return unique_articles
 
-# 자막 가져오기 함수 (YouTube Transcript API 사용)
-def get_video_transcript(video_id):
-    try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
-        return ' '.join([entry['text'] for entry in transcript])
-    except Exception as e:
-        return None
-
 # YouTube 검색 함수
 def search_videos_with_transcript(domain, additional_query, published_after, max_results=10):
     keywords = " OR ".join(FINANCE_DOMAINS[domain])
@@ -98,6 +90,15 @@ def get_published_after(option):
         return (today - timedelta(weeks=52)).isoformat("T") + "Z"
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
+
+# 자막 가져오기 함수 (YouTube Transcript API 사용)
+def get_video_transcript(video_id):
+    try:
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
+        return ' '.join([entry['text'] for entry in transcript])
+    except Exception as e:
+        return None
+
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
@@ -161,7 +162,7 @@ def download_summary_file(summary_text, file_name="summary.txt"):
     )
 
 # Streamlit 앱
-st.title("💹 AI 금융정보 검색 및 분석 서비스")
+st.title("📈 AI 금융정보 검색 및 분석 서비스")
 st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영상과 뉴스를 검색하고 AI를 이용해 분석 정보를 제공합니다. 좌측 사이드바에서 검색 조건을 선택하고 검색해보세요.")
 
 # 사이드바에 검색 조건 배치
