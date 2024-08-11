@@ -62,7 +62,7 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
             q=query,
             type='video',
             part='id,snippet',
-            order='date',
+            order='relevance',
             publishedAfter=published_after,
             maxResults=max_results
         )
