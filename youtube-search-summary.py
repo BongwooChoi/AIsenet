@@ -7,22 +7,32 @@ from datetime import datetime, timedelta
 import requests
 
 # Streamlit 앱 설정
-st.set_page_config(page_title="AI YouTube & 뉴스 검색 및 요약", page_icon="📰", layout="wide")
+st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="💹", layout="wide")
 
 # API 키 설정
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
 
+# 금융 도메인별 키워드 정의
+FINANCE_DOMAINS = {
+    "주식": ["주식", "증권", "배당주", "주가", "투자", "상장", "코스피", "코스닥"],
+    "부동산": ["부동산", "아파트", "주택", "오피스텔", "청약", "재건축", "재개발", "임대"],
+    "코인": ["암호화폐", "비트코인", "이더리움", "블록체인", "코인", "거래소", "채굴", "NFT"],
+    "채권": ["채권", "국채", "회사채", "금리", "만기", "수익률", "발행", "할인"],
+    "경제일반": ["경제", "금융", "무역", "정책", "인플레이션", "국내총생산", "고용", "소비"]
+}
+
 # 뉴스 검색 함수 (Serp API 사용)
-def search_news(query, published_after, max_results=10):
+def search_news(domain, additional_query, published_after, max_results=10):
     api_key = st.secrets["SERP_API_KEY"]
+    keywords = " OR ".join(FINANCE_DOMAINS[domain])
+    query = f"({keywords}) {additional_query}".strip()
     url = f"https://serpapi.com/search.json?q={query}&tbm=nws&api_key={api_key}&num={max_results}&sort=date"
     
     response = requests.get(url)
     news_data = response.json()
     articles = news_data.get('news_results', [])
     
-    # 중복 제거 (URL 기준)
     unique_articles = []
     seen_urls = set()
     for article in articles:
@@ -32,7 +42,7 @@ def search_news(query, published_after, max_results=10):
                 'source': {'name': article.get('source', '')},
                 'description': article.get('snippet', ''),
                 'url': article.get('link', ''),
-                'content': article.get('snippet', '')  # Serp API에는 content가 없으므로 snippet으로 대체
+                'content': article.get('snippet', '')
             })
             seen_urls.add(article['link'])
         if len(unique_articles) == max_results:
@@ -48,13 +58,16 @@ def get_video_transcript(video_id):
     except Exception as e:
         return None
 
-# 유튜브 검색 및 최신 순 정렬 함수
-def search_videos_with_transcript(query, published_after, max_results=10):
+# YouTube 검색 함수
+def search_videos_with_transcript(domain, additional_query, published_after, max_results=10):
+    keywords = " OR ".join(FINANCE_DOMAINS[domain])
+    query = f"({keywords}) {additional_query}".strip()
+    
     request = youtube.search().list(
         q=query,
         type='video',
         part='id,snippet',
-        order='relevance',
+        order='date',
         publishedAfter=published_after,
         maxResults=max_results
     )
@@ -65,8 +78,6 @@ def search_videos_with_transcript(query, published_after, max_results=10):
         video_id = item['id']['videoId']
         if get_video_transcript(video_id):
             videos_with_transcript.append(item)
-    
-    videos_with_transcript.sort(key=lambda x: x['snippet']['publishedAt'], reverse=True)
     
     return videos_with_transcript[:max_results], len(response['items'])
 
@@ -150,19 +161,16 @@ def download_summary_file(summary_text, file_name="summary.txt"):
     )
 
 # Streamlit 앱
-st.title("📰 AI YouTube & 뉴스 검색 및 요약 서비스")
-st.markdown("이 서비스는 YouTube 영상과 뉴스를 검색하고 AI를 이용해 요약 정보를 제공합니다. 좌측 사이드바에 검색 조건을 입력하고 검색해보세요.")
+st.title("💹 AI 금융정보 검색 및 분석 서비스")
+st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영상과 뉴스를 검색하고 AI를 이용해 분석 정보를 제공합니다. 좌측 사이드바에서 검색 조건을 선택하고 검색해보세요.")
 
 # 사이드바에 검색 조건 배치
 with st.sidebar:
     st.header("검색 조건")
     source = st.radio("검색할 소스를 선택하세요:", ("YouTube", "뉴스"))
-    keyword1 = st.text_input("첫 번째 키워드", key="keyword1")
-    keyword2 = st.text_input("두 번째 키워드 (선택 사항)", key="keyword2")
-    keyword3 = st.text_input("세 번째 키워드 (선택 사항)", key="keyword3")
-
+    domain = st.selectbox("금융 도메인 선택", list(FINANCE_DOMAINS.keys()))
+    additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
     period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
-
     search_button = st.button("검색 실행")
 
 # 검색 결과 저장용 세션 상태
@@ -176,33 +184,29 @@ if 'summary' not in st.session_state:
 
 # 검색 실행
 if search_button:
-    keywords = " ".join(filter(None, [keyword1, keyword2, keyword3]))
-    if keywords:
-        with st.spinner(f"{source}를 검색하고 있습니다..."):
-            published_after = get_published_after(period)
+    with st.spinner(f"{source}를 검색하고 있습니다..."):
+        published_after = get_published_after(period)
+        
+        if source == "YouTube":
+            # YouTube 영상 검색
+            videos, total_video_results = search_videos_with_transcript(domain, additional_query, published_after)
+            st.session_state.search_results = {'videos': videos, 'news': []}
+            st.session_state.total_results = total_video_results
+            st.session_state.summary = ""  # YouTube 검색 시 요약 초기화
+        
+        elif source == "뉴스":
+            # 뉴스 검색 및 자동 분석
+            news_articles = search_news(domain, additional_query, published_after, max_results=10)
+            total_news_results = len(news_articles)
+            st.session_state.search_results = {'videos': [], 'news': news_articles}
+            st.session_state.total_results = total_news_results
             
-            if source == "YouTube":
-                # YouTube 영상 검색
-                videos, total_video_results = search_videos_with_transcript(keywords, published_after)
-                st.session_state.search_results = {'videos': videos, 'news': []}
-                st.session_state.total_results = total_video_results
-                st.session_state.summary = ""  # YouTube 검색 시 요약 초기화
-            
-            elif source == "뉴스":
-                # 뉴스 검색 및 자동 분석
-                news_articles = search_news(keywords, published_after, max_results=10)
-                total_news_results = len(news_articles)
-                st.session_state.search_results = {'videos': [], 'news': news_articles}
-                st.session_state.total_results = total_news_results
-                
-                # 뉴스 기사 자동 분석
-                with st.spinner("뉴스 기사를 종합 분석 중입니다..."):
-                    st.session_state.summary = analyze_news_articles(news_articles)
-            
-            if not st.session_state.total_results:
-                st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 키워드로 검색해보세요.")
-    else:
-        st.warning("키워드를 입력해주세요.")
+            # 뉴스 기사 자동 분석
+            with st.spinner("뉴스 기사를 종합 분석 중입니다..."):
+                st.session_state.summary = analyze_news_articles(news_articles)
+        
+        if not st.session_state.total_results:
+            st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 도메인이나 검색어로 검색해보세요.")
 
 # 검색 결과 표시
 if source == "YouTube":
@@ -260,6 +264,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # 주의사항 및 안내
 st.sidebar.markdown("---")
 st.sidebar.markdown("**안내사항:**")
-st.sidebar.markdown("- 이 서비스는 Google AI Studio API, YouTube Data API, Google News API를 사용합니다.")
+st.sidebar.markdown("- 이 서비스는 Google AI Studio API, YouTube Data API, Serp API를 사용합니다.")
 st.sidebar.markdown("- 검색 결과의 품질과 복잡도에 따라 처리 시간이 달라질 수 있습니다.")
 st.sidebar.markdown("- 저작권 보호를 위해 개인적인 용도로만 사용해주세요.")
+st.sidebar.markdown("- 제공되는 정보는 참고용이며, 투자 결정에 직접적으로 사용하지 마세요.")
