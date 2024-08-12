@@ -26,8 +26,18 @@ FINANCE_DOMAINS = {
 def search_news(domain, additional_query, published_after, max_results=10):
     api_key = st.secrets["SERP_API_KEY"]
     keywords = " OR ".join(FINANCE_DOMAINS[domain])
-    query = f"({keywords}) {additional_query}".strip()
-    url = f"https://serpapi.com/search.json?q={query}&tbm=nws&api_key={api_key}&num={max_results}&sort=date"
+    
+    if additional_query:
+        query = f"({keywords}) AND ({additional_query})"
+    else:
+        query = keywords
+    
+    encoded_query = urllib.parse.quote(query)
+    
+    url = f"https://serpapi.com/search.json?q={encoded_query}&tbm=nws&api_key={api_key}&num={max_results}&sort=date"
+    
+    if published_after:
+        url += f"&tbs=qdr:{published_after}"
     
     response = requests.get(url)
     news_data = response.json()
