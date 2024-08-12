@@ -5,6 +5,7 @@ from youtube_transcript_api import YouTubeTranscriptApi
 import os
 from datetime import datetime, timedelta
 import requests
+import urllib.parse
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="📈", layout="wide")
