@@ -20,7 +20,7 @@ FINANCE_DOMAINS = {
     "부동산": ["부동산", "아파트", "주택", "오피스텔", "분양", "청약", "재건축", "재개발", "임대", "상가"],
     "코인": ["암호화폐", "가상화폐", "가상자산", "비트코인", "이더리움", "블록체인", "코인", "거래소", "채굴", "NFT"],
     "채권/금리/환율": ["채권", "국채", "회사채", "금리", "한국은행", "한은", "연준", "환율", "통화", "달러", "엔화", "위안화", "유로화"],
-    "경제일반": ["경제", "무역", "물가", "인플레이션", "국내총생산", "GDP", "소비자물가지수", "생산자물가지수","CPI", "고용", "실업률", "수출", "소비"]
+    "경제일반": ["경제", "금융", "무역", "물가", "인플레이션", "국내총생산", "GDP", "소비자물가지수", "생산자물가지수","CPI", "고용", "수출", "소비"]
 }
 
 # 뉴스 검색 함수 (Serp API 사용)
@@ -182,18 +182,6 @@ def download_summary_file(summary_text, file_name="summary.txt"):
         mime="text/plain"
     )
 
-# 클립보드에 복사하는 함수
-def copy_to_clipboard(summary_text):
-    copy_button = st.button("복사하기")
-    
-    if copy_button:
-        # 복사할 텍스트를 text_area에 표시
-        st.text_area("아래 텍스트를 선택하고 Ctrl+C (Mac의 경우 Cmd+C)를 눌러 복사하세요:", value=summary_text, height=150)
-        
-        # 사용자에게 안내 메시지 표시
-        st.success("위의 텍스트를 선택하고 복사(Ctrl+C 또는 Cmd+C)한 후, 원하는 곳에 붙여넣기 할 수 있습니다.")
-
-
 # Streamlit 앱
 st.title("📈 AI 금융정보 검색 및 분석 서비스")
 st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영상과 뉴스를 검색하고 AI를 이용해 분석 정보를 제공합니다. 좌측 사이드바에서 검색 조건을 선택하고 검색해보세요.")
@@ -276,7 +264,7 @@ elif source == "뉴스":
 
 # 요약 결과 표시 및 다운로드 버튼
 st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
-col1, col2, col3 = st.columns([0.7, 0.15, 0.15])  # 열을 비율로 분할
+col1, col2 = st.columns([0.85, 0.15])  # 열을 비율로 분할
 with col1:
     if source == "YouTube":
         st.subheader("영상 요약 보고서")
@@ -285,9 +273,6 @@ with col1:
 with col2:
     if st.session_state.summary:
         download_summary_file(st.session_state.summary)
-with col3:
-    if st.session_state.summary:
-        copy_to_clipboard(st.session_state.summary)
 
 if st.session_state.summary:
     st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
@@ -297,7 +282,6 @@ else:
     else:
         st.write("뉴스 검색 결과가 없습니다.")
 st.markdown('</div>', unsafe_allow_html=True)
-
 
 # 주의사항 및 안내
 st.sidebar.markdown("---")
