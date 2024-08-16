@@ -182,18 +182,24 @@ def download_summary_file(summary_text, file_name="summary.txt"):
         mime="text/plain"
     )
 
-# 이메일로 공유하는 함수
-def share_by_email(summary_text):
-    st.write("이메일로 공유")
-    email = st.text_input("받는 사람 이메일 주소")
-    if st.button("공유하기"):
-        if email:
-            subject = "AI 금융정보 분석 결과"
-            body = summary_text
-            mailto_link = f"mailto:{email}?subject={urllib.parse.quote(subject)}&body={urllib.parse.quote(body)}"
-            st.markdown(f'<a href="{mailto_link}" target="_blank">이메일 열기</a>', unsafe_allow_html=True)
-        else:
-            st.warning("이메일 주소를 입력해주세요.")
+# 클립보드에 복사하는 함수
+def copy_to_clipboard(summary_text):
+    st.write("클립보드에 복사")
+    if st.button("복사하기"):
+        st.write("요약 내용이 클립보드에 복사되었습니다. Ctrl+V 또는 Command+V로 붙여넣기 할 수 있습니다.")
+        st.code(summary_text)  # 복사할 텍스트를 코드 블록으로 표시
+        st.markdown(f'<textarea style="position: absolute; left: -9999px;">{summary_text}</textarea>', unsafe_allow_html=True)
+        st.markdown(
+            """
+            <script>
+            const textarea = document.querySelector('textarea');
+            textarea.select();
+            document.execCommand('copy');
+            </script>
+            """,
+            unsafe_allow_html=True
+        )
+
 
 # Streamlit 앱
 st.title("📈 AI 금융정보 검색 및 분석 서비스")
@@ -288,7 +294,7 @@ with col2:
         download_summary_file(st.session_state.summary)
 with col3:
     if st.session_state.summary:
-        share_by_email(st.session_state.summary)
+        copy_to_clipboard(st.session_state.summary)
 
 if st.session_state.summary:
     st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
