@@ -20,7 +20,7 @@ FINANCE_DOMAINS = {
     "부동산": ["부동산", "아파트", "주택", "오피스텔", "분양", "청약", "재건축", "재개발", "임대", "상가"],
     "코인": ["암호화폐", "가상화폐", "가상자산", "비트코인", "이더리움", "블록체인", "코인", "거래소", "채굴", "NFT"],
     "채권/금리/환율": ["채권", "국채", "회사채", "금리", "한국은행", "한은", "연준", "환율", "통화", "달러", "엔화", "위안화", "유로화"],
-    "경제일반": ["경제", "금융", "무역", "물가", "인플레이션", "국내총생산", "GDP", "소비자물가지수", "생산자물가지수","CPI", "고용", "수출", "소비"]
+    "경제일반": ["경제", "무역", "물가", "인플레이션", "국내총생산", "GDP", "소비자물가지수", "생산자물가지수","CPI", "고용", "실업률", "수출", "소비"]
 }
 
 # 뉴스 검색 함수 (Serp API 사용)
@@ -182,6 +182,19 @@ def download_summary_file(summary_text, file_name="summary.txt"):
         mime="text/plain"
     )
 
+# 이메일로 공유하는 함수
+def share_by_email(summary_text):
+    st.write("이메일로 공유")
+    email = st.text_input("받는 사람 이메일 주소")
+    if st.button("공유하기"):
+        if email:
+            subject = "AI 금융정보 분석 결과"
+            body = summary_text
+            mailto_link = f"mailto:{email}?subject={urllib.parse.quote(subject)}&body={urllib.parse.quote(body)}"
+            st.markdown(f'<a href="{mailto_link}" target="_blank">이메일 열기</a>', unsafe_allow_html=True)
+        else:
+            st.warning("이메일 주소를 입력해주세요.")
+
 # Streamlit 앱
 st.title("📈 AI 금융정보 검색 및 분석 서비스")
 st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영상과 뉴스를 검색하고 AI를 이용해 분석 정보를 제공합니다. 좌측 사이드바에서 검색 조건을 선택하고 검색해보세요.")
@@ -264,7 +277,7 @@ elif source == "뉴스":
 
 # 요약 결과 표시 및 다운로드 버튼
 st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
-col1, col2 = st.columns([0.85, 0.15])  # 열을 비율로 분할
+col1, col2, col3 = st.columns([0.7, 0.15, 0.15])  # 열을 비율로 분할
 with col1:
     if source == "YouTube":
         st.subheader("영상 요약 보고서")
@@ -273,6 +286,9 @@ with col1:
 with col2:
     if st.session_state.summary:
         download_summary_file(st.session_state.summary)
+with col3:
+    if st.session_state.summary:
+        share_by_email(st.session_state.summary)
 
 if st.session_state.summary:
     st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
