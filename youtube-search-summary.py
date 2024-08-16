@@ -184,21 +184,14 @@ def download_summary_file(summary_text, file_name="summary.txt"):
 
 # 클립보드에 복사하는 함수
 def copy_to_clipboard(summary_text):
-    st.write("클립보드에 복사")
-    if st.button("복사하기"):
-        st.write("요약 내용이 클립보드에 복사되었습니다. Ctrl+V 또는 Command+V로 붙여넣기 할 수 있습니다.")
-        st.code(summary_text)  # 복사할 텍스트를 코드 블록으로 표시
-        st.markdown(f'<textarea style="position: absolute; left: -9999px;">{summary_text}</textarea>', unsafe_allow_html=True)
-        st.markdown(
-            """
-            <script>
-            const textarea = document.querySelector('textarea');
-            textarea.select();
-            document.execCommand('copy');
-            </script>
-            """,
-            unsafe_allow_html=True
-        )
+    copy_button = st.button("복사하기")
+    
+    if copy_button:
+        # 복사할 텍스트를 text_area에 표시
+        st.text_area("아래 텍스트를 선택하고 Ctrl+C (Mac의 경우 Cmd+C)를 눌러 복사하세요:", value=summary_text, height=150)
+        
+        # 사용자에게 안내 메시지 표시
+        st.success("위의 텍스트를 선택하고 복사(Ctrl+C 또는 Cmd+C)한 후, 원하는 곳에 붙여넣기 할 수 있습니다.")
 
 
 # Streamlit 앱
@@ -304,6 +297,7 @@ else:
     else:
         st.write("뉴스 검색 결과가 없습니다.")
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 # 주의사항 및 안내
 st.sidebar.markdown("---")
