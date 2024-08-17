@@ -4,5 +4,5 @@ google-generativeai
 google-api-python-client
 youtube_transcript_api
 requests
-beautifulsoup4
 plotly
+yfinance
