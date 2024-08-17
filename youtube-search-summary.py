@@ -111,7 +111,7 @@ def search_stock_symbol(stock_name):
     except Exception:
         pass  # 오류 발생 시 다음 단계로 진행
 
-    # 한글 이름으로 검색
+    # 한글 이름으로 검색 (해당 부분을 수정합니다)
     url = f"https://query1.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(stock_name)}&lang=ko-KR&region=KR&quotesCount=1&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query"
     headers = {'User-Agent': 'Mozilla/5.0'}
     try:
@@ -133,6 +133,7 @@ def search_stock_symbol(stock_name):
         st.error(f"종목 검색 중 오류 발생: {str(e)}")
     
     return None
+
 
 def is_valid_symbol(symbol):
     try:
