@@ -255,7 +255,7 @@ if 'search_results' not in st.session_state:
             st.session_state.search_results = {'videos': [], 'news': [], 'reports': reports}
             st.session_state.total_results = total_reports_results
 
-        ifnot st.session_state.total_results:
+        if not st.session_state.total_results:
             st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 도메인이나 검색어로 검색해보세요.")
 
 # 요약 결과 저장용 세션 상태
