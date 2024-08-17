@@ -97,7 +97,7 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         return [], 0
 
 # 증권사 리포트 검색 함수 (네이버 증권 크롤링)
-def search_stock_reports(keyword, max_results=10):
+def search_stock_reports(keyword, start_date, end_date, max_results=10):
     base_url = "https://finance.naver.com/research/company_list.naver"
     params = {
         "keyword": keyword,
@@ -116,18 +116,20 @@ def search_stock_reports(keyword, max_results=10):
             if len(cols) < 5:
                 continue
             
-            report = {
-                'title': cols[1].text.strip(),
-                'company': cols[2].text.strip(),
-                'date': cols[3].text.strip(),
-                'url': 'https://finance.naver.com' + cols[1].select_one('a')['href']
-            }
-            reports.append(report)
+            report_date = datetime.strptime(cols[3].text.strip(), '%Y-%m-%d')
+            if start_date <= report_date <= end_date:
+                report = {
+                    'title': cols[1].text.strip(),
+                    'company': cols[2].text.strip(),
+                    'date': cols[3].text.strip(),
+                    'url': 'https://finance.naver.com' + cols[1].select_one('a')['href']
+                }
+                reports.append(report)
             
-            if len(reports) >= max_results:
+            if len(reports) >= max_results or report_date < start_date:
                 break
         
-        if len(reports) < max_results:
+        if len(reports) < max_results and report_date >= start_date:
             params['page'] += 1
         else:
             break
@@ -269,9 +271,29 @@ with st.sidebar:
     if source in ["YouTube", "뉴스"]:
         domain = st.selectbox("금융 도메인 선택", list(FINANCE_DOMAINS.keys()))
         additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
-        period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
     else:
         keyword = st.text_input("종목명 또는 종목코드", key="stock_keyword")
+    
+    period = st.selectbox("조회 기간", ["최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년", "직접 입력"], index=2)
+    
+    if period == "직접 입력":
+        start_date = st.date_input("시작일", value=datetime.now() - timedelta(days=30))
+        end_date = st.date_input("종료일", value=datetime.now())
+    else:
+        end_date = datetime.now().date()
+        if period == "최근 1일":
+            start_date = end_date - timedelta(days=1)
+        elif period == "최근 1주일":
+            start_date = end_date - timedelta(weeks=1)
+        elif period == "최근 1개월":
+            start_date = end_date - timedelta(days=30)
+        elif period == "최근 3개월":
+            start_date = end_date - timedelta(days=90)
+        elif period == "최근 6개월":
+            start_date = end_date - timedelta(days=180)
+        elif period == "최근 1년":
+            start_date = end_date - timedelta(days=365)
+    
     search_button = st.button("검색 실행")
 
 # 검색 결과 저장용 세션 상태
@@ -287,7 +309,7 @@ if 'summary' not in st.session_state:
 if search_button:
     with st.spinner(f"{source}를 검색하고 있습니다..."):
         if source in ["YouTube", "뉴스"]:
-            published_after = get_published_after(period)
+            published_after = start_date.isoformat() + "T00:00:00Z"
             
             if source == "YouTube":
                 # YouTube 영상 검색
@@ -309,13 +331,13 @@ if search_button:
         
         elif source == "증권사 리포트":
             # 증권사 리포트 검색
-            reports = search_stock_reports(keyword, max_results=10)
+            reports = search_stock_reports(keyword, start_date, end_date, max_results=10)
             st.session_state.search_results = {'videos': [], 'news': [], 'reports': reports}
             st.session_state.total_results = len(reports)
             st.session_state.summary = ""  # 리포트 검색 시 요약 초기화
         
         if not st.session_state.total_results:
-            st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 검색어로 검색해보세요.")
+            st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 검색어나 조회 기간으로 검색해보세요.")
 
 # 검색 결과 표시
 if source == "YouTube":
