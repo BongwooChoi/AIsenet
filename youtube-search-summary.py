@@ -6,8 +6,6 @@ import os
 from datetime import datetime, timedelta
 import requests
 import urllib.parse
-import pandas as pd
-from bs4 import BeautifulSoup
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="📈", layout="wide")
@@ -96,54 +94,18 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
 
-# 증권사 리포트 검색 함수 (네이버 증권 크롤링)
-def search_stock_reports(keyword, start_date, end_date, max_results=10):
-    base_url = "https://finance.naver.com/research/company_list.naver"
-    params = {
-        "keyword": keyword,
-        "searchType": "itemCode",
-        "page": 1
-    }
+# 재무정보 검색
+def search_financial_info(stock_symbol):
+    api_key = st.secrets["SERP_API_KEY"]
+    query = f"{stock_symbol} financial statements"
+    encoded_query = urllib.parse.quote(query)
     
-    reports = []
-    continue_search = True
-    while continue_search and len(reports) < max_results:
-        response = requests.get(base_url, params=params)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        items = soup.select('table.type_1 tr:not(.none)')
-        if len(items) <= 1:  # 결과가 없거나 헤더만 있는 경우
-            break
-        
-        for item in items[1:]:  # 첫 번째 행은 헤더이므로 건너뜁니다
-            cols = item.select('td')
-            if len(cols) < 5:
-                continue
-            
-            try:
-                report_date = datetime.strptime(cols[3].text.strip(), '%Y-%m-%d').date()
-            except ValueError:
-                continue  # 날짜 형식이 잘못된 경우 건너뜁니다
-            
-            if start_date <= report_date <= end_date:
-                report = {
-                    'title': cols[1].text.strip(),
-                    'company': cols[2].text.strip(),
-                    'date': cols[3].text.strip(),
-                    'url': 'https://finance.naver.com' + cols[1].select_one('a')['href']
-                }
-                reports.append(report)
-                if len(reports) >= max_results:
-                    continue_search = False
-                    break
-            elif report_date < start_date:
-                continue_search = False
-                break
-        
-        if continue_search:
-            params['page'] += 1
+    url = f"https://serpapi.com/search.json?q={encoded_query}&api_key={api_key}&engine=google_finance"
     
-    return reports[:max_results]
+    response = requests.get(url)
+    financial_data = response.json()
+    
+    return financial_data
 
 # 조회 기간 선택 함수
 def get_published_after(option):
@@ -224,41 +186,41 @@ def analyze_news_articles(articles):
     except Exception as e:
         return f"분석 중 오류가 발생했습니다: {str(e)}"
 
-# 증권사 리포트 요약 함수
-def summarize_stock_report(report):
+# 재무정보 분석
+def analyze_financial_info(financial_data, stock_symbol):
     try:
-        response = requests.get(report['url'])
-        soup = BeautifulSoup(response.content, 'html.parser')
-        content = soup.select_one('#contentarea').text.strip()
-        
         model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # 재무 데이터를 문자열로 변환
+        financial_info = "\n".join([f"{key}: {value}" for key, value in financial_data.items()])
+        
         prompt = f"""
-다음은 증권사 리포트의 제목과 내용입니다. 이를 요약하여 가독성 있는 한 페이지의 보고서를 다음 형식으로 작성해주세요:
+다음은 {stock_symbol} 주식의 재무정보입니다. 이 정보를 바탕으로 종합적인 재무 분석 보고서를 작성해주세요. 보고서는 다음 형식을 참고하여 작성해주세요:
 
-1. 리포트 개요 (제목, 증권사, 작성일)
-2. 주요 내용 요약 (3-5개의 핵심 포인트)
-3. 분석 및 전망
-4. 투자의견 및 목표가 (있을 경우)
+1. 기업 개요
+2. 주요 재무지표 분석
+   - 수익성
+   - 성장성
+   - 안정성
+3. 주식 가치평가
+4. 리스크 요인
+5. 향후 전망 및 투자 의견
 
-보고서는 한국어로 작성해주세요. 객관성을 유지하고, 편향된 의견을 제시하지 않도록 주의해주세요.
+보고서는 한국어로 작성해주세요. 분석 시 객관성을 유지하고, 편향된 의견을 제시하지 않도록 주의해주세요.
 
-제목: {report['title']}
-증권사: {report['company']}
-작성일: {report['date']}
-
-내용:
-{content}
+재무 정보:
+{financial_info}
 """
         response = model.generate_content(prompt)
 
         if not response or not response.parts:
             feedback = response.prompt_feedback if response else "No response received."
-            return f"요약 중 오류가 발생했습니다: {feedback}"
+            return f"분석 중 오류가 발생했습니다: {feedback}"
 
-        summary = response.text
-        return summary
+        analysis = response.text
+        return analysis
     except Exception as e:
-        return f"요약 중 오류가 발생했습니다: {str(e)}"
+        return f"분석 중 오류가 발생했습니다: {str(e)}"
 
 # 파일로 다운로드할 수 있는 함수
 def download_summary_file(summary_text, file_name="summary.txt"):
@@ -271,43 +233,23 @@ def download_summary_file(summary_text, file_name="summary.txt"):
 
 # Streamlit 앱
 st.title("📈 AI 금융정보 검색 및 분석 서비스")
-st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영상, 뉴스, 증권사 리포트를 검색하고 AI를 이용해 분석 정보를 제공합니다. 좌측 사이드바에서 검색 조건을 선택하고 검색해보세요.")
+st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영상, 뉴스, 그리고 주식 재무정보를 검색하고 AI를 이용해 분석 정보를 제공합니다. 좌측 사이드바에서 검색 조건을 선택하고 검색해보세요.")
 
 # 사이드바에 검색 조건 배치
 with st.sidebar:
     st.header("검색 조건")
-    source = st.radio("검색할 소스를 선택하세요:", ("YouTube", "뉴스", "증권사 리포트"))
+    source = st.radio("검색할 소스를 선택하세요:", ("YouTube", "뉴스", "재무정보"))
     if source in ["YouTube", "뉴스"]:
         domain = st.selectbox("금융 도메인 선택", list(FINANCE_DOMAINS.keys()))
         additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
+        period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
     else:
-        keyword = st.text_input("종목명 또는 종목코드", key="stock_keyword")
-    
-    period = st.selectbox("조회 기간", ["최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년", "직접 입력"], index=2)
-    
-    if period == "직접 입력":
-        start_date = st.date_input("시작일", value=datetime.now() - timedelta(days=30))
-        end_date = st.date_input("종료일", value=datetime.now())
-    else:
-        end_date = datetime.now().date()
-        if period == "최근 1일":
-            start_date = end_date - timedelta(days=1)
-        elif period == "최근 1주일":
-            start_date = end_date - timedelta(weeks=1)
-        elif period == "최근 1개월":
-            start_date = end_date - timedelta(days=30)
-        elif period == "최근 3개월":
-            start_date = end_date - timedelta(days=90)
-        elif period == "최근 6개월":
-            start_date = end_date - timedelta(days=180)
-        elif period == "최근 1년":
-            start_date = end_date - timedelta(days=365)
-    
+        stock_symbol = st.text_input("주식 종목 코드 입력 (예: AAPL)")
     search_button = st.button("검색 실행")
 
 # 검색 결과 저장용 세션 상태
 if 'search_results' not in st.session_state:
-    st.session_state.search_results = {'videos': [], 'news': [], 'reports': []}
+    st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': {}}
     st.session_state.total_results = 0
 
 # 요약 결과 저장용 세션 상태
@@ -316,14 +258,14 @@ if 'summary' not in st.session_state:
 
 # 검색 실행
 if search_button:
-    with st.spinner(f"{source}를 검색하고 있습니다..."):
-        if source in ["YouTube", "뉴스"]:
-            published_after = start_date.isoformat() + "T00:00:00Z"
+    if source in ["YouTube", "뉴스"]:
+        with st.spinner(f"{source}를 검색하고 있습니다..."):
+            published_after = get_published_after(period)
             
             if source == "YouTube":
                 # YouTube 영상 검색
                 videos, total_video_results = search_videos_with_transcript(domain, additional_query, published_after)
-                st.session_state.search_results = {'videos': videos, 'news': [], 'reports': []}
+                st.session_state.search_results = {'videos': videos, 'news': [], 'financial_info': {}}
                 st.session_state.total_results = total_video_results
                 st.session_state.summary = ""  # YouTube 검색 시 요약 초기화
             
@@ -331,22 +273,27 @@ if search_button:
                 # 뉴스 검색 및 자동 분석
                 news_articles = search_news(domain, additional_query, published_after, max_results=10)
                 total_news_results = len(news_articles)
-                st.session_state.search_results = {'videos': [], 'news': news_articles, 'reports': []}
+                st.session_state.search_results = {'videos': [], 'news': news_articles, 'financial_info': {}}
                 st.session_state.total_results = total_news_results
                 
                 # 뉴스 기사 자동 분석
                 with st.spinner("뉴스 기사를 종합 분석 중입니다..."):
                     st.session_state.summary = analyze_news_articles(news_articles)
-        
-        elif source == "증권사 리포트":
-            # 증권사 리포트 검색
-            reports = search_stock_reports(keyword, start_date, end_date, max_results=10)
-            st.session_state.search_results = {'videos': [], 'news': [], 'reports': reports}
-            st.session_state.total_results = len(reports)
-            st.session_state.summary = ""  # 리포트 검색 시 요약 초기화
-        
-        if not st.session_state.total_results:
-            st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 검색어나 조회 기간으로 검색해보세요.")
+            
+            if not st.session_state.total_results:
+                st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 도메인이나 검색어로 검색해보세요.")
+    
+    elif source == "재무정보":
+        with st.spinner(f"{stock_symbol}의 재무정보를 검색하고 있습니다..."):
+            financial_info = search_financial_info(stock_symbol)
+            st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': financial_info}
+            st.session_state.total_results = 1 if financial_info else 0
+            
+            if financial_info:
+                with st.spinner("재무정보를 분석 중입니다..."):
+                    st.session_state.summary = analyze_financial_info(financial_info, stock_symbol)
+            else:
+                st.warning(f"{stock_symbol}의 재무정보를 찾을 수 없습니다. 올바른 종목 코드인지 확인해주세요.")
 
 # 검색 결과 표시
 if source == "YouTube":
@@ -379,19 +326,12 @@ elif source == "뉴스":
         st.markdown(f"[기사 보기]({article['url']})")
         st.divider()
 
-elif source == "증권사 리포트":
-    st.subheader(f"검색된 총 증권사 리포트: {st.session_state.total_results}개")
-    for i, report in enumerate(st.session_state.search_results['reports']):
-        st.subheader(report['title'])
-        st.markdown(f"**증권사:** {report['company']}")
-        st.markdown(f"**작성일:** {report['date']}")
-        st.markdown(f"[리포트 보기]({report['url']})")
-        
-        if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_report_{i}"):
-            with st.spinner("리포트를 요약하는 중..."):
-                summary = summarize_stock_report(report)
-                st.session_state.summary = summary
-        st.divider()
+elif source == "재무정보":
+    if st.session_state.search_results['financial_info']:
+        st.subheader(f"{stock_symbol}의 재무정보")
+        st.json(st.session_state.search_results['financial_info'])
+    else:
+        st.warning("재무정보를 찾을 수 없습니다.")
 
 # 요약 결과 표시 및 다운로드 버튼
 st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
@@ -402,7 +342,7 @@ with col1:
     elif source == "뉴스":
         st.subheader("뉴스 종합 분석 보고서")
     else:
-        st.subheader("증권사 리포트 요약")
+        st.subheader("재무정보 분석 보고서")
 with col2:
     if st.session_state.summary:
         download_summary_file(st.session_state.summary)
@@ -415,13 +355,13 @@ else:
     elif source == "뉴스":
         st.write("뉴스 검색 결과가 없습니다.")
     else:
-        st.write("증권사 리포트 검색 결과에서 요약할 리포트를 선택하세요.")
+        st.write("재무정보 검색 결과가 없습니다.")
 st.markdown('</div>', unsafe_allow_html=True)
 
 # 주의사항 및 안내
 st.sidebar.markdown("---")
 st.sidebar.markdown("**안내사항:**")
-st.sidebar.markdown("- 이 서비스는 Google AI Studio API, YouTube Data API, Google Search API를 사용합니다.")
+st.sidebar.markdown("- 이 서비스는 Google AI Studio API, YouTube Data API, Google Search API, SERP API를 사용합니다.")
 st.sidebar.markdown("- 검색 결과의 품질과 복잡도에 따라 처리 시간이 달라질 수 있습니다.")
 st.sidebar.markdown("- 저작권 보호를 위해 개인적인 용도로만 사용해주세요.")
 st.sidebar.markdown("- 제공되는 정보는 참고용이며, 투자 결정에 직접적으로 사용하지 마세요.")
