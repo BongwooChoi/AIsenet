@@ -265,10 +265,13 @@ st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영�
 # 사이드바에 검색 조건 배치
 with st.sidebar:
     st.header("검색 조건")
-    source = st.radio("검색할 소스를 선택하세요:", ("YouTube", "뉴스"))
-    domain = st.selectbox("금융 도메인 선택", list(FINANCE_DOMAINS.keys()))
-    additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
-    period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
+    source = st.radio("검색할 소스를 선택하세요:", ("YouTube", "뉴스", "증권사 리포트"))
+    if source in ["YouTube", "뉴스"]:
+        domain = st.selectbox("금융 도메인 선택", list(FINANCE_DOMAINS.keys()))
+        additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
+        period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
+    else:
+        keyword = st.text_input("종목명 또는 종목코드", key="stock_keyword")
     search_button = st.button("검색 실행")
 
 # 검색 결과 저장용 세션 상태
