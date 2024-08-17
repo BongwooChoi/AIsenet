@@ -144,7 +144,7 @@ def summarize_video(video_id, video_title):
 # 뉴스 기사 종합 분석 함수
 def analyze_news_articles(articles):
     try:
-        model = genai.GenerativeModel('gemini-1.5-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         # 모든 기사의 제목과 내용을 하나의 문자열로 결합
         all_articles = "\n\n".join([f"제목: {article['title']}\n내용: {article['content']}" for article in articles])
