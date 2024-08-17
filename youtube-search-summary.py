@@ -6,6 +6,8 @@ import os
 from datetime import datetime, timedelta
 import requests
 import urllib.parse
+import pandas as pd
+from bs4 import BeautifulSoup
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="📈", layout="wide")
@@ -94,6 +96,44 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
 
+# 증권사 리포트 검색 함수 (네이버 증권 크롤링)
+def search_stock_reports(keyword, max_results=10):
+    base_url = "https://finance.naver.com/research/company_list.naver"
+    params = {
+        "keyword": keyword,
+        "searchType": "itemCode",
+        "page": 1
+    }
+    
+    reports = []
+    while len(reports) < max_results:
+        response = requests.get(base_url, params=params)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        items = soup.select('table.type_1 tr:not(.none)')
+        for item in items[1:]:  # 첫 번째 행은 헤더이므로 건너뜁니다
+            cols = item.select('td')
+            if len(cols) < 5:
+                continue
+            
+            report = {
+                'title': cols[1].text.strip(),
+                'company': cols[2].text.strip(),
+                'date': cols[3].text.strip(),
+                'url': 'https://finance.naver.com' + cols[1].select_one('a')['href']
+            }
+            reports.append(report)
+            
+            if len(reports) >= max_results:
+                break
+        
+        if len(reports) < max_results:
+            params['page'] += 1
+        else:
+            break
+    
+    return reports[:max_results]
+
 # 조회 기간 선택 함수
 def get_published_after(option):
     today = datetime.utcnow()
@@ -173,6 +213,42 @@ def analyze_news_articles(articles):
     except Exception as e:
         return f"분석 중 오류가 발생했습니다: {str(e)}"
 
+# 증권사 리포트 요약 함수
+def summarize_stock_report(report):
+    try:
+        response = requests.get(report['url'])
+        soup = BeautifulSoup(response.content, 'html.parser')
+        content = soup.select_one('#contentarea').text.strip()
+        
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        prompt = f"""
+다음은 증권사 리포트의 제목과 내용입니다. 이를 요약하여 가독성 있는 한 페이지의 보고서를 다음 형식으로 작성해주세요:
+
+1. 리포트 개요 (제목, 증권사, 작성일)
+2. 주요 내용 요약 (3-5개의 핵심 포인트)
+3. 분석 및 전망
+4. 투자의견 및 목표가 (있을 경우)
+
+보고서는 한국어로 작성해주세요. 객관성을 유지하고, 편향된 의견을 제시하지 않도록 주의해주세요.
+
+제목: {report['title']}
+증권사: {report['company']}
+작성일: {report['date']}
+
+내용:
+{content}
+"""
+        response = model.generate_content(prompt)
+
+        if not response or not response.parts:
+            feedback = response.prompt_feedback if response else "No response received."
+            return f"요약 중 오류가 발생했습니다: {feedback}"
+
+        summary = response.text
+        return summary
+    except Exception as e:
+        return f"요약 중 오류가 발생했습니다: {str(e)}"
+
 # 파일로 다운로드할 수 있는 함수
 def download_summary_file(summary_text, file_name="summary.txt"):
     st.download_button(
@@ -184,7 +260,7 @@ def download_summary_file(summary_text, file_name="summary.txt"):
 
 # Streamlit 앱
 st.title("📈 AI 금융정보 검색 및 분석 서비스")
-st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영상과 뉴스를 검색하고 AI를 이용해 분석 정보를 제공합니다. 좌측 사이드바에서 검색 조건을 선택하고 검색해보세요.")
+st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영상, 뉴스, 증권사 리포트를 검색하고 AI를 이용해 분석 정보를 제공합니다. 좌측 사이드바에서 검색 조건을 선택하고 검색해보세요.")
 
 # 사이드바에 검색 조건 배치
 with st.sidebar:
@@ -197,7 +273,7 @@ with st.sidebar:
 
 # 검색 결과 저장용 세션 상태
 if 'search_results' not in st.session_state:
-    st.session_state.search_results = {'videos': [], 'news': []}
+    st.session_state.search_results = {'videos': [], 'news': [], 'reports': []}
     st.session_state.total_results = 0
 
 # 요약 결과 저장용 세션 상태
@@ -207,28 +283,36 @@ if 'summary' not in st.session_state:
 # 검색 실행
 if search_button:
     with st.spinner(f"{source}를 검색하고 있습니다..."):
-        published_after = get_published_after(period)
-        
-        if source == "YouTube":
-            # YouTube 영상 검색
-            videos, total_video_results = search_videos_with_transcript(domain, additional_query, published_after)
-            st.session_state.search_results = {'videos': videos, 'news': []}
-            st.session_state.total_results = total_video_results
-            st.session_state.summary = ""  # YouTube 검색 시 요약 초기화
-        
-        elif source == "뉴스":
-            # 뉴스 검색 및 자동 분석
-            news_articles = search_news(domain, additional_query, published_after, max_results=10)
-            total_news_results = len(news_articles)
-            st.session_state.search_results = {'videos': [], 'news': news_articles}
-            st.session_state.total_results = total_news_results
+        if source in ["YouTube", "뉴스"]:
+            published_after = get_published_after(period)
             
-            # 뉴스 기사 자동 분석
-            with st.spinner("뉴스 기사를 종합 분석 중입니다..."):
-                st.session_state.summary = analyze_news_articles(news_articles)
+            if source == "YouTube":
+                # YouTube 영상 검색
+                videos, total_video_results = search_videos_with_transcript(domain, additional_query, published_after)
+                st.session_state.search_results = {'videos': videos, 'news': [], 'reports': []}
+                st.session_state.total_results = total_video_results
+                st.session_state.summary = ""  # YouTube 검색 시 요약 초기화
+            
+            elif source == "뉴스":
+                # 뉴스 검색 및 자동 분석
+                news_articles = search_news(domain, additional_query, published_after, max_results=10)
+                total_news_results = len(news_articles)
+                st.session_state.search_results = {'videos': [], 'news': news_articles, 'reports': []}
+                st.session_state.total_results = total_news_results
+                
+                # 뉴스 기사 자동 분석
+                with st.spinner("뉴스 기사를 종합 분석 중입니다..."):
+                    st.session_state.summary = analyze_news_articles(news_articles)
+        
+        elif source == "증권사 리포트":
+            # 증권사 리포트 검색
+            reports = search_stock_reports(keyword, max_results=10)
+            st.session_state.search_results = {'videos': [], 'news': [], 'reports': reports}
+            st.session_state.total_results = len(reports)
+            st.session_state.summary = ""  # 리포트 검색 시 요약 초기화
         
         if not st.session_state.total_results:
-            st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 도메인이나 검색어로 검색해보세요.")
+            st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 검색어로 검색해보세요.")
 
 # 검색 결과 표시
 if source == "YouTube":
@@ -259,7 +343,20 @@ elif source == "뉴스":
         st.markdown(f"**출처:** {article['source']['name']}")
         st.write(article['description'])
         st.markdown(f"[기사 보기]({article['url']})")
+        st.divider()
+
+elif source == "증권사 리포트":
+    st.subheader(f"검색된 총 증권사 리포트: {st.session_state.total_results}개")
+    for i, report in enumerate(st.session_state.search_results['reports']):
+        st.subheader(report['title'])
+        st.markdown(f"**증권사:** {report['company']}")
+        st.markdown(f"**작성일:** {report['date']}")
+        st.markdown(f"[리포트 보기]({report['url']})")
         
+        if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_report_{i}"):
+            with st.spinner("리포트를 요약하는 중..."):
+                summary = summarize_stock_report(report)
+                st.session_state.summary = summary
         st.divider()
 
 # 요약 결과 표시 및 다운로드 버튼
@@ -268,8 +365,10 @@ col1, col2 = st.columns([0.85, 0.15])  # 열을 비율로 분할
 with col1:
     if source == "YouTube":
         st.subheader("영상 요약 보고서")
-    else:
+    elif source == "뉴스":
         st.subheader("뉴스 종합 분석 보고서")
+    else:
+        st.subheader("증권사 리포트 요약")
 with col2:
     if st.session_state.summary:
         download_summary_file(st.session_state.summary)
@@ -279,8 +378,10 @@ if st.session_state.summary:
 else:
     if source == "YouTube":
         st.write("검색 결과에서 요약할 영상을 선택하세요.")
-    else:
+    elif source == "뉴스":
         st.write("뉴스 검색 결과가 없습니다.")
+    else:
+        st.write("증권사 리포트 검색 결과에서 요약할 리포트를 선택하세요.")
 st.markdown('</div>', unsafe_allow_html=True)
 
 # 주의사항 및 안내
