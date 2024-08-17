@@ -8,6 +8,7 @@ import requests
 import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
+import yfinance as yf
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="📈", layout="wide")
