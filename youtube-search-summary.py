@@ -124,12 +124,23 @@ def search_stock_symbol(stock_name):
             for suffix in suffixes:
                 if symbol.endswith(suffix):
                     return symbol
-            # 접미사가 없는 경우, .KS 추가 (코스피 가정)
-            return f"{symbol}.KS"
+            # 접미사가 없는 경우, .KS와 .KQ 모두 시도
+            for suffix in suffixes:
+                test_symbol = f"{symbol}{suffix}"
+                if is_valid_symbol(test_symbol):
+                    return test_symbol
     except Exception as e:
         st.error(f"종목 검색 중 오류 발생: {str(e)}")
     
     return None
+
+def is_valid_symbol(symbol):
+    try:
+        stock = yf.Ticker(symbol)
+        info = stock.info
+        return info and isinstance(info, dict) and info.get('regularMarketPrice') is not None
+    except Exception:
+        return False
 
 # 재무정보 검색 함수
 def search_financial_info(stock_symbol):
