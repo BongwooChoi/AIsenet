@@ -106,17 +106,25 @@ def search_stock_reports(keyword, start_date, end_date, max_results=10):
     }
     
     reports = []
-    while len(reports) < max_results:
+    continue_search = True
+    while continue_search and len(reports) < max_results:
         response = requests.get(base_url, params=params)
         soup = BeautifulSoup(response.content, 'html.parser')
         
         items = soup.select('table.type_1 tr:not(.none)')
+        if len(items) <= 1:  # 결과가 없거나 헤더만 있는 경우
+            break
+        
         for item in items[1:]:  # 첫 번째 행은 헤더이므로 건너뜁니다
             cols = item.select('td')
             if len(cols) < 5:
                 continue
             
-            report_date = datetime.strptime(cols[3].text.strip(), '%Y-%m-%d')
+            try:
+                report_date = datetime.strptime(cols[3].text.strip(), '%Y-%m-%d').date()
+            except ValueError:
+                continue  # 날짜 형식이 잘못된 경우 건너뜁니다
+            
             if start_date <= report_date <= end_date:
                 report = {
                     'title': cols[1].text.strip(),
@@ -125,14 +133,15 @@ def search_stock_reports(keyword, start_date, end_date, max_results=10):
                     'url': 'https://finance.naver.com' + cols[1].select_one('a')['href']
                 }
                 reports.append(report)
-            
-            if len(reports) >= max_results or report_date < start_date:
+                if len(reports) >= max_results:
+                    continue_search = False
+                    break
+            elif report_date < start_date:
+                continue_search = False
                 break
         
-        if len(reports) < max_results and report_date >= start_date:
+        if continue_search:
             params['page'] += 1
-        else:
-            break
     
     return reports[:max_results]
 
