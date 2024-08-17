@@ -6,7 +6,6 @@ import os
 from datetime import datetime, timedelta
 import requests
 import urllib.parse
-from bs4 import BeautifulSoup
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="📈", layout="wide")
@@ -94,43 +93,7 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
     except Exception as e:
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
-        
-# 네이버 증권 리포트 검색 함수
-def search_reports(domain, additional_query, published_after, max_results=10):
-    base_url = "https://finance.naver.com/research/company_list.naver"
-    
-    query = domain
-    if additional_query:
-        query += f" {additional_query}"
-    
-    encoded_query = urllib.parse.quote(query)
-    
-    search_url = f"{base_url}?keyword={encoded_query}"
-    
-    response = requests.get(search_url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    
-    reports = []
-    
-    report_items = soup.select('div.box_type_m tbody tr')
-    
-    for item in report_items[:max_results]:
-        title_tag = item.select_one('td.tit a')
-        if title_tag:
-            title = title_tag.text.strip()
-            url = "https://finance.naver.com" + title_tag['href']
-            source = item.select_one('td.info').text.strip()
-            date = item.select_one('td.date').text.strip()
-            description = f"{source}에서 발행한 리포트 ({date})"
-            
-            reports.append({
-                'title': title,
-                'url': url,
-                'source': {'name': source},
-                'description': description
-            })
-    return reports
-    
+
 # 조회 기간 선택 함수
 def get_published_after(option):
     today = datetime.utcnow()
@@ -226,37 +189,16 @@ st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영�
 # 사이드바에 검색 조건 배치
 with st.sidebar:
     st.header("검색 조건")
-    source = st.radio("검색할 소스를 선택하세요:", ("YouTube", "뉴스", "증권사 리포트"))
+    source = st.radio("검색할 소스를 선택하세요:", ("YouTube", "뉴스"))
     domain = st.selectbox("금융 도메인 선택", list(FINANCE_DOMAINS.keys()))
     additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
     period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
     search_button = st.button("검색 실행")
-    
+
 # 검색 결과 저장용 세션 상태
 if 'search_results' not in st.session_state:
-    st.session_state.search_results = {'videos': [], 'news': [], 'reports': []}
-    st.session_state.total_results = 0# 검색 실행if search_button:
-    with st.spinner(f"{source}를 검색하고 있습니다..."):
-        published_after = get_published_after(period)
-        
-        if source == "YouTube":
-            videos, total_video_results = search_videos_with_transcript(domain, additional_query, published_after)
-            st.session_state.search_results = {'videos': videos, 'news': [], 'reports': []}
-            st.session_state.total_results = total_video_results
-            st.session_state.summary = ""# YouTube 검색 시 요약 초기화elif source == "뉴스":
-            news_articles = search_news(domain, additional_query, published_after, max_results=10)
-            total_news_results = len(news_articles)
-            st.session_state.search_results = {'videos': [], 'news': news_articles, 'reports': []}
-            st.session_state.total_results = total_news_results
-        
-        elif source == "증권사 리포트":
-            reports = search_reports(domain, additional_query, published_after, max_results=10)
-            total_reports_results = len(reports)
-            st.session_state.search_results = {'videos': [], 'news': [], 'reports': reports}
-            st.session_state.total_results = total_reports_results
-
-        if not st.session_state.total_results:
-            st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 도메인이나 검색어로 검색해보세요.")
+    st.session_state.search_results = {'videos': [], 'news': []}
+    st.session_state.total_results = 0
 
 # 요약 결과 저장용 세션 상태
 if 'summary' not in st.session_state:
@@ -317,15 +259,7 @@ elif source == "뉴스":
         st.markdown(f"**출처:** {article['source']['name']}")
         st.write(article['description'])
         st.markdown(f"[기사 보기]({article['url']})")
-        st.divider()
-
-elif source == "증권사 리포트":
-    st.subheader(f"검색된 총 증권사 리포트: {st.session_state.total_results}개")
-    for report in st.session_state.search_results['reports']:
-        st.subheader(report['title'])
-        st.markdown(f"**발행 증권사:** {report['source']['name']}")
-        st.write(report['description'])
-        st.markdown(f"[리포트 보기]({report['url']})")
+        
         st.divider()
 
 # 요약 결과 표시 및 다운로드 버튼
