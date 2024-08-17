@@ -332,7 +332,7 @@ if search_button:
             
             if not st.session_state.total_results:
                 st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 도메인이나 검색어로 검색해보세요.")
-    
+        pass
     elif source == "재무정보":
         with st.spinner(f"{stock_symbol}의 재무정보를 검색하고 있습니다..."):
             financial_info = search_financial_info(stock_symbol)
@@ -375,7 +375,7 @@ elif source == "뉴스":
         st.write(article['description'])
         st.markdown(f"[기사 보기]({article['url']})")
         st.divider()
-
+    pass
 elif source == "재무정보":
     if st.session_state.search_results['financial_info']:
         st.subheader(f"{stock_symbol}의 재무정보")
