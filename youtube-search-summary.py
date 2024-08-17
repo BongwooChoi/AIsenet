@@ -96,66 +96,49 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
 
-# 재무정보 검색
-def search_financial_info(stock_symbol):
-    api_key = st.secrets["SERP_API_KEY"]
-    query = f"{stock_symbol} financial statements"
-    encoded_query = urllib.parse.quote(query)
+# 종목명으로 종목 코드 검색 함수
+def search_stock_symbol(stock_name):
+    url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(stock_name)}&quotesCount=1&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query"
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    response = requests.get(url, headers=headers)
+    data = response.json()
     
-    url = f"https://serpapi.com/search.json?q={encoded_query}&api_key={api_key}&engine=google_finance"
-    
-    response = requests.get(url)
-    financial_data = response.json()
-    
-    # 필요한 재무 정보만 추출
-    financials = financial_data.get('financials', {})
-    income_statement = financials.get('income_statement', {})
-    balance_sheet = financials.get('balance_sheet', {})
-    cash_flow_statement = financials.get('cash_flow_statement', {})
-    
-    return {
-        'income_statement': income_statement,
-        'balance_sheet': balance_sheet,
-        'cash_flow_statement': cash_flow_statement
-    }
+    if 'quotes' in data and len(data['quotes']) > 0:
+        return data['quotes'][0]['symbol']
+    return None
 
-# 새로운 함수: 재무정보 시각화
-def visualize_financial_info(financial_info):
-    # 손익계산서 시각화
-    if financial_info['income_statement']:
-        df_income = pd.DataFrame(financial_info['income_statement']).T
-        df_income = df_income.apply(pd.to_numeric, errors='coerce')
+# 재무정보 검색 함수 수정
+def search_financial_info(stock_symbol):
+    try:
+        stock = yf.Ticker(stock_symbol)
         
-        fig_income = go.Figure()
-        for column in df_income.columns:
-            fig_income.add_trace(go.Bar(x=df_income.index, y=df_income[column], name=column))
+        # 기본 재무제표 정보 가져오기
+        income_statement = stock.financials
+        balance_sheet = stock.balance_sheet
+        cash_flow = stock.cashflow
         
-        fig_income.update_layout(title='손익계산서', barmode='group', xaxis_title='날짜', yaxis_title='금액')
-        st.plotly_chart(fig_income)
-    
-    # 대차대조표 시각화
-    if financial_info['balance_sheet']:
-        df_balance = pd.DataFrame(financial_info['balance_sheet']).T
-        df_balance = df_balance.apply(pd.to_numeric, errors='coerce')
+        return {
+            'income_statement': income_statement.to_dict(),
+            'balance_sheet': balance_sheet.to_dict(),
+            'cash_flow_statement': cash_flow.to_dict()
+        }
+    except Exception as e:
+        st.error(f"재무정보 검색 중 오류 발생: {str(e)}")
+        return None
+
+# 재무정보 표시 함수
+def display_financial_info(financial_info):
+    if financial_info:
+        st.subheader("손익계산서")
+        st.dataframe(pd.DataFrame(financial_info['income_statement']).T)
         
-        fig_balance = go.Figure()
-        for column in df_balance.columns:
-            fig_balance.add_trace(go.Bar(x=df_balance.index, y=df_balance[column], name=column))
+        st.subheader("대차대조표")
+        st.dataframe(pd.DataFrame(financial_info['balance_sheet']).T)
         
-        fig_balance.update_layout(title='대차대조표', barmode='group', xaxis_title='날짜', yaxis_title='금액')
-        st.plotly_chart(fig_balance)
-    
-    # 현금흐름표 시각화
-    if financial_info['cash_flow_statement']:
-        df_cash = pd.DataFrame(financial_info['cash_flow_statement']).T
-        df_cash = df_cash.apply(pd.to_numeric, errors='coerce')
-        
-        fig_cash = go.Figure()
-        for column in df_cash.columns:
-            fig_cash.add_trace(go.Bar(x=df_cash.index, y=df_cash[column], name=column))
-        
-        fig_cash.update_layout(title='현금흐름표', barmode='group', xaxis_title='날짜', yaxis_title='금액')
-        st.plotly_chart(fig_cash)
+        st.subheader("현금흐름표")
+        st.dataframe(pd.DataFrame(financial_info['cash_flow_statement']).T)
+    else:
+        st.warning("재무정보를 찾을 수 없습니다.")
 
 # 조회 기간 선택 함수
 def get_published_after(option):
@@ -334,16 +317,20 @@ if search_button:
                 st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 도메인이나 검색어로 검색해보세요.")
     
     elif source == "재무정보":
-        with st.spinner(f"{stock_symbol}의 재무정보를 검색하고 있습니다..."):
-            financial_info = search_financial_info(stock_symbol)
-            st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': financial_info}
-            st.session_state.total_results = 1 if financial_info else 0
-            
-            if financial_info:
-                with st.spinner("재무정보를 분석 중입니다..."):
-                    st.session_state.summary = analyze_financial_info(financial_info, stock_symbol)
+        with st.spinner(f"{stock_input}의 재무정보를 검색하고 있습니다..."):
+            stock_symbol = search_stock_symbol(stock_input) if not stock_input.isalpha() else stock_input
+            if stock_symbol:
+                financial_info = search_financial_info(stock_symbol)
+                st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': financial_info}
+                st.session_state.total_results = 1 if financial_info else 0
+                
+                if financial_info:
+                    with st.spinner("재무정보를 분석 중입니다..."):
+                        st.session_state.summary = analyze_financial_info(financial_info, stock_symbol)
+                else:
+                    st.warning(f"{stock_input}의 재무정보를 찾을 수 없습니다. 올바른 종목명 또는 종목 코드인지 확인해주세요.")
             else:
-                st.warning(f"{stock_symbol}의 재무정보를 찾을 수 없습니다. 올바른 종목 코드인지 확인해주세요.")
+                st.warning(f"{stock_input}에 해당하는 종목을 찾을 수 없습니다.")
 
 # 검색 결과 표시
 if source == "YouTube":
@@ -378,7 +365,8 @@ elif source == "뉴스":
 
 elif source == "재무정보":
     if st.session_state.search_results['financial_info']:
-        st.subheader(f"{stock_symbol}의 재무정보")
+        st.subheader(f"{stock_input}의 재무정보")
+        display_financial_info(st.session_state.search_results['financial_info'])
         visualize_financial_info(st.session_state.search_results['financial_info'])
     else:
         st.warning("재무정보를 찾을 수 없습니다.")
