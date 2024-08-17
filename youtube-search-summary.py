@@ -99,16 +99,31 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
 
 # 종목명으로 종목 코드 검색 함수
 def search_stock_symbol(stock_name):
-    url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(stock_name)}&quotesCount=1&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query"
+    # 한국 주식을 위한 접미사
+    suffixes = ['.KS', '.KQ']
+    
+    # 먼저 입력된 이름으로 직접 검색
+    stock = yf.Ticker(stock_name)
+    if stock.info and stock.info['regularMarketPrice'] is not None:
+        return stock_name
+
+    # 한글 이름으로 검색
+    url = f"https://query1.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(stock_name)}&lang=ko-KR&region=KR&quotesCount=1&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query"
     headers = {'User-Agent': 'Mozilla/5.0'}
     response = requests.get(url, headers=headers)
     data = response.json()
     
     if 'quotes' in data and len(data['quotes']) > 0:
-        return data['quotes'][0]['symbol']
+        symbol = data['quotes'][0]['symbol']
+        # 한국 주식인 경우 접미사 추가
+        for suffix in suffixes:
+            if symbol.endswith(suffix):
+                return symbol
+        # 접미사가 없는 경우, .KS 추가 (코스피 가정)
+        return f"{symbol}.KS"
+    
     return None
 
-# 재무정보 검색 함수 수정
 def search_financial_info(stock_symbol):
     try:
         stock = yf.Ticker(stock_symbol)
@@ -118,6 +133,10 @@ def search_financial_info(stock_symbol):
         balance_sheet = stock.balance_sheet
         cash_flow = stock.cashflow
         
+        if income_statement.empty and balance_sheet.empty and cash_flow.empty:
+            st.warning(f"{stock_symbol}의 재무정보를 찾을 수 없습니다.")
+            return None
+        
         return {
             'income_statement': income_statement.to_dict(),
             'balance_sheet': balance_sheet.to_dict(),
@@ -126,7 +145,21 @@ def search_financial_info(stock_symbol):
     except Exception as e:
         st.error(f"재무정보 검색 중 오류 발생: {str(e)}")
         return None
+
+# 재무정보 표시 함수
+def display_financial_info(financial_info):
+    if financial_info:
+        st.subheader("손익계산서")
+        st.dataframe(pd.DataFrame(financial_info['income_statement']).T)
         
+        st.subheader("대차대조표")
+        st.dataframe(pd.DataFrame(financial_info['balance_sheet']).T)
+        
+        st.subheader("현금흐름표")
+        st.dataframe(pd.DataFrame(financial_info['cash_flow_statement']).T)
+    else:
+        st.warning("재무정보를 찾을 수 없습니다.")
+
 # 재무정보 시각화 함수 추가
 def visualize_financial_info(financial_info):
     if not financial_info:
@@ -159,20 +192,6 @@ def visualize_financial_info(financial_info):
         fig_cash_flow.add_trace(go.Bar(x=cash_flow_df.index, y=cash_flow_df[column], name=column))
     fig_cash_flow.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액")
     st.plotly_chart(fig_cash_flow)
-
-# 재무정보 표시 함수
-def display_financial_info(financial_info):
-    if financial_info:
-        st.subheader("손익계산서")
-        st.dataframe(pd.DataFrame(financial_info['income_statement']).T)
-        
-        st.subheader("대차대조표")
-        st.dataframe(pd.DataFrame(financial_info['balance_sheet']).T)
-        
-        st.subheader("현금흐름표")
-        st.dataframe(pd.DataFrame(financial_info['cash_flow_statement']).T)
-    else:
-        st.warning("재무정보를 찾을 수 없습니다.")
 
 # 조회 기간 선택 함수
 def get_published_after(option):
@@ -311,9 +330,9 @@ with st.sidebar:
         additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
         period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
     else:
-        stock_input = st.text_input("주식 종목명 또는 종목 코드 입력 (예: Apple 또는 AAPL)")
+        stock_input = st.text_input("주식 종목명 입력 (예: 삼성전자)")
     search_button = st.button("검색 실행")
-
+    
 # 검색 결과 저장용 세션 상태
 if 'search_results' not in st.session_state:
     st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': {}}
@@ -352,7 +371,7 @@ if search_button:
     
     elif source == "재무정보":
         with st.spinner(f"{stock_input}의 재무정보를 검색하고 있습니다..."):
-            stock_symbol = search_stock_symbol(stock_input) if not stock_input.isalpha() else stock_input
+            stock_symbol = search_stock_symbol(stock_input)
             if stock_symbol:
                 financial_info = search_financial_info(stock_symbol)
                 st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': financial_info}
@@ -362,7 +381,7 @@ if search_button:
                     with st.spinner("재무정보를 분석 중입니다..."):
                         st.session_state.summary = analyze_financial_info(financial_info, stock_symbol)
                 else:
-                    st.warning(f"{stock_input}의 재무정보를 찾을 수 없습니다. 올바른 종목명 또는 종목 코드인지 확인해주세요.")
+                    st.warning(f"{stock_input}의 재무정보를 찾을 수 없습니다. 올바른 종목명인지 확인해주세요.")
             else:
                 st.warning(f"{stock_input}에 해당하는 종목을 찾을 수 없습니다.")
 
@@ -401,7 +420,6 @@ elif source == "재무정보":
     if st.session_state.search_results['financial_info']:
         st.subheader(f"{stock_input}의 재무정보")
         display_financial_info(st.session_state.search_results['financial_info'])
-        visualize_financial_info(st.session_state.search_results['financial_info'])
     else:
         st.warning("재무정보를 찾을 수 없습니다.")
 
