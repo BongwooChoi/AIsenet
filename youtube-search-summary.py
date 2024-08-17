@@ -6,6 +6,8 @@ import os
 from datetime import datetime, timedelta
 import requests
 import urllib.parse
+import pandas as pd
+import plotly.graph_objects as go
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="📈", layout="wide")
@@ -105,7 +107,55 @@ def search_financial_info(stock_symbol):
     response = requests.get(url)
     financial_data = response.json()
     
-    return financial_data
+    # 필요한 재무 정보만 추출
+    financials = financial_data.get('financials', {})
+    income_statement = financials.get('income_statement', {})
+    balance_sheet = financials.get('balance_sheet', {})
+    cash_flow_statement = financials.get('cash_flow_statement', {})
+    
+    return {
+        'income_statement': income_statement,
+        'balance_sheet': balance_sheet,
+        'cash_flow_statement': cash_flow_statement
+    }
+
+# 새로운 함수: 재무정보 시각화
+def visualize_financial_info(financial_info):
+    # 손익계산서 시각화
+    if financial_info['income_statement']:
+        df_income = pd.DataFrame(financial_info['income_statement']).T
+        df_income = df_income.apply(pd.to_numeric, errors='coerce')
+        
+        fig_income = go.Figure()
+        for column in df_income.columns:
+            fig_income.add_trace(go.Bar(x=df_income.index, y=df_income[column], name=column))
+        
+        fig_income.update_layout(title='손익계산서', barmode='group', xaxis_title='날짜', yaxis_title='금액')
+        st.plotly_chart(fig_income)
+    
+    # 대차대조표 시각화
+    if financial_info['balance_sheet']:
+        df_balance = pd.DataFrame(financial_info['balance_sheet']).T
+        df_balance = df_balance.apply(pd.to_numeric, errors='coerce')
+        
+        fig_balance = go.Figure()
+        for column in df_balance.columns:
+            fig_balance.add_trace(go.Bar(x=df_balance.index, y=df_balance[column], name=column))
+        
+        fig_balance.update_layout(title='대차대조표', barmode='group', xaxis_title='날짜', yaxis_title='금액')
+        st.plotly_chart(fig_balance)
+    
+    # 현금흐름표 시각화
+    if financial_info['cash_flow_statement']:
+        df_cash = pd.DataFrame(financial_info['cash_flow_statement']).T
+        df_cash = df_cash.apply(pd.to_numeric, errors='coerce')
+        
+        fig_cash = go.Figure()
+        for column in df_cash.columns:
+            fig_cash.add_trace(go.Bar(x=df_cash.index, y=df_cash[column], name=column))
+        
+        fig_cash.update_layout(title='현금흐름표', barmode='group', xaxis_title='날짜', yaxis_title='금액')
+        st.plotly_chart(fig_cash)
 
 # 조회 기간 선택 함수
 def get_published_after(option):
@@ -329,7 +379,7 @@ elif source == "뉴스":
 elif source == "재무정보":
     if st.session_state.search_results['financial_info']:
         st.subheader(f"{stock_symbol}의 재무정보")
-        st.json(st.session_state.search_results['financial_info'])
+        visualize_financial_info(st.session_state.search_results['financial_info'])
     else:
         st.warning("재무정보를 찾을 수 없습니다.")
 
