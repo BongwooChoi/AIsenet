@@ -102,16 +102,7 @@ def search_stock_symbol(stock_name):
     # 한국 주식을 위한 접미사
     suffixes = ['.KS', '.KQ']
     
-    # 먼저 입력된 이름으로 직접 검색
-    try:
-        stock = yf.Ticker(stock_name)
-        info = stock.info
-        if info and isinstance(info, dict) and info.get('regularMarketPrice') is not None:
-            return stock_name
-    except Exception:
-        pass  # 오류 발생 시 다음 단계로 진행
-
-    # 한글 이름으로 검색 (해당 부분을 수정합니다)
+    # 한글 이름으로 검색하여 종목 코드 반환
     url = f"https://query1.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(stock_name)}&lang=ko-KR&region=KR&quotesCount=1&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query"
     headers = {'User-Agent': 'Mozilla/5.0'}
     try:
@@ -130,10 +121,9 @@ def search_stock_symbol(stock_name):
                 if is_valid_symbol(test_symbol):
                     return test_symbol
     except Exception as e:
-        st.error(f"종목 검색 중 오류 발생: {str(e)}")
+        print(f"종목 검색 중 오류 발생: {str(e)}")
     
     return None
-
 
 def is_valid_symbol(symbol):
     try:
@@ -144,7 +134,13 @@ def is_valid_symbol(symbol):
         return False
 
 # 재무정보 검색 함수
-def search_financial_info(stock_symbol):
+def search_financial_info(stock_name):
+    # 먼저 종목 코드를 검색합니다
+    stock_symbol = search_stock_symbol(stock_name)
+    if not stock_symbol:
+        print(f"종목 코드가 없습니다: {stock_name}")
+        return None
+    
     try:
         stock = yf.Ticker(stock_symbol)
         
@@ -154,7 +150,7 @@ def search_financial_info(stock_symbol):
         cash_flow = stock.cashflow
         
         if income_statement.empty and balance_sheet.empty and cash_flow.empty:
-            st.warning(f"{stock_symbol}의 재무정보를 찾을 수 없습니다.")
+            print(f"{stock_symbol}의 재무정보를 찾을 수 없습니다.")
             return None
         
         return {
@@ -163,7 +159,7 @@ def search_financial_info(stock_symbol):
             'cash_flow_statement': cash_flow.to_dict()
         }
     except Exception as e:
-        st.error(f"재무정보 검색 중 오류 발생: {str(e)}")
+        print(f"재무정보 검색 중 오류 발생: {str(e)}")
         return None
 
 # 재무정보 표시 함수
