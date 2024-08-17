@@ -128,7 +128,7 @@ def summarize_video(video_id, video_title):
         if not transcript:
             return "자막을 가져올 수 없어 요약할 수 없습니다."
 
-        model = genai.GenerativeModel('gemini-1.5-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\n{transcript}"
         response = model.generate_content(prompt)
 
