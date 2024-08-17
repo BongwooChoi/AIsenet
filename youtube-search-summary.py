@@ -107,9 +107,6 @@ def search_financial_info(stock_symbol):
     response = requests.get(url)
     financial_data = response.json()
     
-    # 디버깅을 위해 전체 응답 데이터 출력
-    st.write("API 응답 데이터:", financial_data)
-    
     # 필요한 재무 정보만 추출
     financials = financial_data.get('financials', {})
     income_statement = financials.get('income_statement', {})
@@ -124,24 +121,41 @@ def search_financial_info(stock_symbol):
 
 # 새로운 함수: 재무정보 시각화
 def visualize_financial_info(financial_info):
-    for statement_type, data in financial_info.items():
-        if data:
-            st.subheader(f"{statement_type.replace('_', ' ').title()}")
-            df = pd.DataFrame(data).T
-            df = df.apply(pd.to_numeric, errors='coerce')
-            
-            # 데이터프레임 출력 (디버깅용)
-            st.write(f"{statement_type} 데이터:")
-            st.write(df)
-            
-            fig = go.Figure()
-            for column in df.columns:
-                fig.add_trace(go.Bar(x=df.index, y=df[column], name=column))
-            
-            fig.update_layout(barmode='group', xaxis_title='날짜', yaxis_title='금액')
-            st.plotly_chart(fig)
-        else:
-            st.warning(f"{statement_type.replace('_', ' ').title()} 데이터를 찾을 수 없습니다.")
+    # 손익계산서 시각화
+    if financial_info['income_statement']:
+        df_income = pd.DataFrame(financial_info['income_statement']).T
+        df_income = df_income.apply(pd.to_numeric, errors='coerce')
+        
+        fig_income = go.Figure()
+        for column in df_income.columns:
+            fig_income.add_trace(go.Bar(x=df_income.index, y=df_income[column], name=column))
+        
+        fig_income.update_layout(title='손익계산서', barmode='group', xaxis_title='날짜', yaxis_title='금액')
+        st.plotly_chart(fig_income)
+    
+    # 대차대조표 시각화
+    if financial_info['balance_sheet']:
+        df_balance = pd.DataFrame(financial_info['balance_sheet']).T
+        df_balance = df_balance.apply(pd.to_numeric, errors='coerce')
+        
+        fig_balance = go.Figure()
+        for column in df_balance.columns:
+            fig_balance.add_trace(go.Bar(x=df_balance.index, y=df_balance[column], name=column))
+        
+        fig_balance.update_layout(title='대차대조표', barmode='group', xaxis_title='날짜', yaxis_title='금액')
+        st.plotly_chart(fig_balance)
+    
+    # 현금흐름표 시각화
+    if financial_info['cash_flow_statement']:
+        df_cash = pd.DataFrame(financial_info['cash_flow_statement']).T
+        df_cash = df_cash.apply(pd.to_numeric, errors='coerce')
+        
+        fig_cash = go.Figure()
+        for column in df_cash.columns:
+            fig_cash.add_trace(go.Bar(x=df_cash.index, y=df_cash[column], name=column))
+        
+        fig_cash.update_layout(title='현금흐름표', barmode='group', xaxis_title='날짜', yaxis_title='금액')
+        st.plotly_chart(fig_cash)
 
 # 조회 기간 선택 함수
 def get_published_after(option):
@@ -318,15 +332,14 @@ if search_button:
             
             if not st.session_state.total_results:
                 st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 도메인이나 검색어로 검색해보세요.")
-        pass
+    
     elif source == "재무정보":
         with st.spinner(f"{stock_symbol}의 재무정보를 검색하고 있습니다..."):
             financial_info = search_financial_info(stock_symbol)
             st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': financial_info}
-            st.session_state.total_results = 1 if any(financial_info.values()) else 0
+            st.session_state.total_results = 1 if financial_info else 0
             
-            if any(financial_info.values()):
-                st.success(f"{stock_symbol}의 재무정보를 성공적으로 가져왔습니다.")
+            if financial_info:
                 with st.spinner("재무정보를 분석 중입니다..."):
                     st.session_state.summary = analyze_financial_info(financial_info, stock_symbol)
             else:
@@ -362,9 +375,9 @@ elif source == "뉴스":
         st.write(article['description'])
         st.markdown(f"[기사 보기]({article['url']})")
         st.divider()
-    pass
+
 elif source == "재무정보":
-    if any(st.session_state.search_results['financial_info'].values()):
+    if st.session_state.search_results['financial_info']:
         st.subheader(f"{stock_symbol}의 재무정보")
         visualize_financial_info(st.session_state.search_results['financial_info'])
     else:
