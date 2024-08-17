@@ -103,27 +103,35 @@ def search_stock_symbol(stock_name):
     suffixes = ['.KS', '.KQ']
     
     # 먼저 입력된 이름으로 직접 검색
-    stock = yf.Ticker(stock_name)
-    if stock.info and stock.info['regularMarketPrice'] is not None:
-        return stock_name
+    try:
+        stock = yf.Ticker(stock_name)
+        info = stock.info
+        if info and isinstance(info, dict) and info.get('regularMarketPrice') is not None:
+            return stock_name
+    except Exception:
+        pass  # 오류 발생 시 다음 단계로 진행
 
     # 한글 이름으로 검색
     url = f"https://query1.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(stock_name)}&lang=ko-KR&region=KR&quotesCount=1&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query"
     headers = {'User-Agent': 'Mozilla/5.0'}
-    response = requests.get(url, headers=headers)
-    data = response.json()
-    
-    if 'quotes' in data and len(data['quotes']) > 0:
-        symbol = data['quotes'][0]['symbol']
-        # 한국 주식인 경우 접미사 추가
-        for suffix in suffixes:
-            if symbol.endswith(suffix):
-                return symbol
-        # 접미사가 없는 경우, .KS 추가 (코스피 가정)
-        return f"{symbol}.KS"
+    try:
+        response = requests.get(url, headers=headers)
+        data = response.json()
+        
+        if 'quotes' in data and len(data['quotes']) > 0:
+            symbol = data['quotes'][0]['symbol']
+            # 한국 주식인 경우 접미사 추가
+            for suffix in suffixes:
+                if symbol.endswith(suffix):
+                    return symbol
+            # 접미사가 없는 경우, .KS 추가 (코스피 가정)
+            return f"{symbol}.KS"
+    except Exception as e:
+        st.error(f"종목 검색 중 오류 발생: {str(e)}")
     
     return None
 
+# 재무정보 검색 함수
 def search_financial_info(stock_symbol):
     try:
         stock = yf.Ticker(stock_symbol)
@@ -374,10 +382,9 @@ if search_button:
             stock_symbol = search_stock_symbol(stock_input)
             if stock_symbol:
                 financial_info = search_financial_info(stock_symbol)
-                st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': financial_info}
-                st.session_state.total_results = 1 if financial_info else 0
-                
                 if financial_info:
+                    st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': financial_info}
+                    st.session_state.total_results = 1
                     with st.spinner("재무정보를 분석 중입니다..."):
                         st.session_state.summary = analyze_financial_info(financial_info, stock_symbol)
                 else:
