@@ -10,6 +10,30 @@ import urllib.parse
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="📈", layout="wide")
 
+# Custom CSS to create a clear separation
+st.markdown("""
+<style>
+    .main-container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+    }
+    .search-results {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        border-bottom: 2px solid #e0e0e0;
+    }
+    .report-container {
+        height: 40vh;
+        overflow-y: auto;
+        padding: 1rem;
+        background-color: #f0f0f0;
+        border-top: 2px solid #e0e0e0;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # API 키 설정
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
@@ -204,26 +228,29 @@ if 'search_results' not in st.session_state:
 if 'summary' not in st.session_state:
     st.session_state.summary = ""
 
+# 메인 컨테이너 시작
+st.markdown('<div class="main-container">', unsafe_allow_html=True)
+
+# 검색 결과 영역
+st.markdown('<div class="search-results">', unsafe_allow_html=True)
+
 # 검색 실행
 if search_button:
     with st.spinner(f"{source}를 검색하고 있습니다..."):
         published_after = get_published_after(period)
         
         if source == "YouTube":
-            # YouTube 영상 검색
             videos, total_video_results = search_videos_with_transcript(domain, additional_query, published_after)
             st.session_state.search_results = {'videos': videos, 'news': []}
             st.session_state.total_results = total_video_results
             st.session_state.summary = ""  # YouTube 검색 시 요약 초기화
         
         elif source == "뉴스":
-            # 뉴스 검색 및 자동 분석
             news_articles = search_news(domain, additional_query, published_after, max_results=10)
             total_news_results = len(news_articles)
             st.session_state.search_results = {'videos': [], 'news': news_articles}
             st.session_state.total_results = total_news_results
             
-            # 뉴스 기사 자동 분석
             with st.spinner("뉴스 기사를 종합 분석 중입니다..."):
                 st.session_state.summary = analyze_news_articles(news_articles)
         
@@ -259,12 +286,13 @@ elif source == "뉴스":
         st.markdown(f"**출처:** {article['source']['name']}")
         st.write(article['description'])
         st.markdown(f"[기사 보기]({article['url']})")
-        
         st.divider()
 
-# 요약 결과 표시 및 다운로드 버튼
-st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
-col1, col2 = st.columns([0.85, 0.15])  # 열을 비율로 분할
+st.markdown('</div>', unsafe_allow_html=True)  # 검색 결과 영역 종료
+
+# 보고서 영역
+st.markdown('<div class="report-container">', unsafe_allow_html=True)
+col1, col2 = st.columns([0.85, 0.15])
 with col1:
     if source == "YouTube":
         st.subheader("영상 요약 보고서")
@@ -275,15 +303,17 @@ with col2:
         download_summary_file(st.session_state.summary)
 
 if st.session_state.summary:
-    st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
+    st.markdown(st.session_state.summary)
 else:
     if source == "YouTube":
         st.write("검색 결과에서 요약할 영상을 선택하세요.")
     else:
         st.write("뉴스 검색 결과가 없습니다.")
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)  # 보고서 영역 종료
 
-# 주의사항 및 안내
+st.markdown('</div>', unsafe_allow_html=True)  # 메인 컨테이너 종료
+
+# 주의사항 및 안내 (사이드바에 유지)
 st.sidebar.markdown("---")
 st.sidebar.markdown("**안내사항:**")
 st.sidebar.markdown("- 이 서비스는 Google AI Studio API, YouTube Data API, Google Search API를 사용합니다.")
