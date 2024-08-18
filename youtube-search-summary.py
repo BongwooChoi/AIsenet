@@ -9,7 +9,6 @@ import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
-import io
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="📈", layout="wide")
@@ -98,68 +97,18 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
 
-
-def get_krx_stock_code(stock_name):
-    try:
-        # KRX에서 제공하는 상장법인목록 파일 다운로드
-        url = "http://kind.krx.co.kr/corpgeneral/corpList.do?method=download&searchType=13"
-        response = requests.get(url)
-        response.raise_for_status()  # 요청이 실패하면 예외를 발생시킵니다.
-        
-        # 다운로드한 내용을 메모리에서 읽고, 인코딩을 명시적으로 지정합니다.
-        df = pd.read_html(io.BytesIO(response.content), encoding='EUC-KR')[0]
-        
-        # 종목명으로 검색
-        df = df[['회사명', '종목코드']]
-        df = df[df['회사명'].str.contains(stock_name, case=False, na=False)]
-        
-        if len(df) > 0:
-            code = df.iloc[0]['종목코드']
-            return f"{code:06d}"  # 6자리 숫자로 변환
-        return None
-    except Exception as e:
-        st.error(f"KRX 데이터 조회 중 오류 발생: {str(e)}")
-        return None
-
-def search_stock_symbol(stock_input):
-    # KRX 데이터에서 종목 코드 검색
-    krx_code = get_krx_stock_code(stock_input)
-    if krx_code:
-        for suffix in ['.KS', '.KQ']:
-            full_code = f"{krx_code}{suffix}"
-            if is_valid_symbol(full_code):
-                return full_code
+# 종목명으로 종목 코드 검색 함수
+def search_stock_symbol(stock_name):
+    url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(stock_name)}&quotesCount=1&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query"
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    response = requests.get(url, headers=headers)
+    data = response.json()
     
-    # 직접 입력된 값이 유효한 종목 코드인지 확인
-    if is_valid_symbol(stock_input):
-        return stock_input
-
-    # Yahoo Finance 검색 API 사용 (백업 방법)
-    try:
-        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={stock_input}&lang=en-US&region=US&quotesCount=1&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query"
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            data = response.json()
-            if 'quotes' in data and len(data['quotes']) > 0:
-                symbol = data['quotes'][0]['symbol']
-                if is_valid_symbol(symbol):
-                    return symbol
-    except Exception as e:
-        st.warning(f"Yahoo Finance API 검색 중 오류 발생: {str(e)}")
-
-    st.error(f"'{stock_input}'에 해당하는 유효한 주식 심볼을 찾을 수 없습니다.")
+    if 'quotes' in data and len(data['quotes']) > 0:
+        return data['quotes'][0]['symbol']
     return None
 
-def is_valid_symbol(symbol):
-    try:
-        stock = yf.Ticker(symbol)
-        info = stock.info
-        return info and isinstance(info, dict) and info.get('regularMarketPrice') is not None
-    except Exception:
-        return False
-
-# 재무정보 검색 함수
+# 재무정보 검색 함수 수정
 def search_financial_info(stock_symbol):
     try:
         stock = yf.Ticker(stock_symbol)
@@ -168,10 +117,6 @@ def search_financial_info(stock_symbol):
         income_statement = stock.financials
         balance_sheet = stock.balance_sheet
         cash_flow = stock.cashflow
-        
-        if income_statement.empty and balance_sheet.empty and cash_flow.empty:
-            st.warning(f"{stock_symbol}의 재무정보를 찾을 수 없습니다.")
-            return None
         
         return {
             'income_statement': income_statement.to_dict(),
@@ -195,39 +140,6 @@ def display_financial_info(financial_info):
         st.dataframe(pd.DataFrame(financial_info['cash_flow_statement']).T)
     else:
         st.warning("재무정보를 찾을 수 없습니다.")
-
-# 재무정보 시각화 함수 추가
-def visualize_financial_info(financial_info):
-    if not financial_info:
-        st.warning("시각화할 재무정보가 없습니다.")
-        return
-
-    # 손익계산서 시각화
-    income_df = pd.DataFrame(financial_info['income_statement']).T
-    st.subheader("손익계산서 시각화")
-    fig_income = go.Figure()
-    for column in income_df.columns:
-        fig_income.add_trace(go.Bar(x=income_df.index, y=income_df[column], name=column))
-    fig_income.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액")
-    st.plotly_chart(fig_income)
-
-    # 대차대조표 시각화
-    balance_df = pd.DataFrame(financial_info['balance_sheet']).T
-    st.subheader("대차대조표 시각화")
-    fig_balance = go.Figure()
-    for column in balance_df.columns:
-        fig_balance.add_trace(go.Bar(x=balance_df.index, y=balance_df[column], name=column))
-    fig_balance.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액")
-    st.plotly_chart(fig_balance)
-
-    # 현금흐름표 시각화
-    cash_flow_df = pd.DataFrame(financial_info['cash_flow_statement']).T
-    st.subheader("현금흐름표 시각화")
-    fig_cash_flow = go.Figure()
-    for column in cash_flow_df.columns:
-        fig_cash_flow.add_trace(go.Bar(x=cash_flow_df.index, y=cash_flow_df[column], name=column))
-    fig_cash_flow.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액")
-    st.plotly_chart(fig_cash_flow)
 
 # 조회 기간 선택 함수
 def get_published_after(option):
@@ -366,9 +278,9 @@ with st.sidebar:
         additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
         period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
     else:
-        stock_input = st.text_input("주식 종목명 입력 (예: 삼성전자)")
+        stock_input = st.text_input("주식 종목명 또는 종목 코드 입력 (예: Apple 또는 AAPL)")
     search_button = st.button("검색 실행")
-    
+
 # 검색 결과 저장용 세션 상태
 if 'search_results' not in st.session_state:
     st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': {}}
@@ -407,16 +319,17 @@ if search_button:
     
     elif source == "재무정보":
         with st.spinner(f"{stock_input}의 재무정보를 검색하고 있습니다..."):
-            stock_symbol = search_stock_symbol(stock_input)
+            stock_symbol = search_stock_symbol(stock_input) if not stock_input.isalpha() else stock_input
             if stock_symbol:
                 financial_info = search_financial_info(stock_symbol)
+                st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': financial_info}
+                st.session_state.total_results = 1 if financial_info else 0
+                
                 if financial_info:
-                    st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': financial_info}
-                    st.session_state.total_results = 1
                     with st.spinner("재무정보를 분석 중입니다..."):
                         st.session_state.summary = analyze_financial_info(financial_info, stock_symbol)
                 else:
-                    st.warning(f"{stock_input}의 재무정보를 찾을 수 없습니다. 올바른 종목명인지 확인해주세요.")
+                    st.warning(f"{stock_input}의 재무정보를 찾을 수 없습니다. 올바른 종목명 또는 종목 코드인지 확인해주세요.")
             else:
                 st.warning(f"{stock_input}에 해당하는 종목을 찾을 수 없습니다.")
 
@@ -455,6 +368,7 @@ elif source == "재무정보":
     if st.session_state.search_results['financial_info']:
         st.subheader(f"{stock_input}의 재무정보")
         display_financial_info(st.session_state.search_results['financial_info'])
+        visualize_financial_info(st.session_state.search_results['financial_info'])
     else:
         st.warning("재무정보를 찾을 수 없습니다.")
 
