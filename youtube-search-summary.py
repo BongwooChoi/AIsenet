@@ -98,41 +98,36 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         return [], 0
 
 
-def get_stock_code(stock_name):
-    base_url = "https://symbol-search.tradingview.com/symbol_search/?text={}&hl=1&exchange=KRX&lang=ko&type=stock"
-    response = requests.get(base_url.format(stock_name))
-    data = response.json()
-    
-    if data and len(data) > 0:
-        return data[0].get('symbol', '')
-    return None
-
-# 종목코드로 검색 함수
-def search_stock_symbol(stock_input):
-    # 먼저 입력된 값이 종목 코드인지 확인
+def get_krx_stock_code(stock_name):
     try:
-        stock = yf.Ticker(stock_input)
-        info = stock.info
-        if info and isinstance(info, dict) and info.get('regularMarketPrice') is not None:
-            return stock_input
-    except Exception:
-        pass
-
-    # TradingView API를 사용한 검색
-    try:
-        base_url = "https://symbol-search.tradingview.com/symbol_search/?text={}&hl=1&exchange=KRX&lang=ko&type=stock"
-        response = requests.get(base_url.format(stock_input))
-        if response.status_code == 200:
-            data = response.json()
-            if data and len(data) > 0:
-                stock_code = data[0].get('symbol', '')
-                if stock_code:
-                    for suffix in ['.KS', '.KQ']:
-                        full_code = f"{stock_code}{suffix}"
-                        if is_valid_symbol(full_code):
-                            return full_code
+        # KRX에서 제공하는 상장법인목록 파일 다운로드
+        url = "http://kind.krx.co.kr/corpgeneral/corpList.do?method=download&searchType=13"
+        df = pd.read_html(url, header=0)[0]
+        
+        # 종목명으로 검색
+        df = df[['회사명', '종목코드']]
+        df = df[df['회사명'].str.contains(stock_name, case=False, na=False)]
+        
+        if len(df) > 0:
+            code = df.iloc[0]['종목코드']
+            return f"{code:06d}"  # 6자리 숫자로 변환
+        return None
     except Exception as e:
-        st.warning(f"TradingView API 검색 중 오류 발생: {str(e)}")
+        st.error(f"KRX 데이터 조회 중 오류 발생: {str(e)}")
+        return None
+
+def search_stock_symbol(stock_input):
+    # KRX 데이터에서 종목 코드 검색
+    krx_code = get_krx_stock_code(stock_input)
+    if krx_code:
+        for suffix in ['.KS', '.KQ']:
+            full_code = f"{krx_code}{suffix}"
+            if is_valid_symbol(full_code):
+                return full_code
+    
+    # 직접 입력된 값이 유효한 종목 코드인지 확인
+    if is_valid_symbol(stock_input):
+        return stock_input
 
     # Yahoo Finance 검색 API 사용 (백업 방법)
     try:
