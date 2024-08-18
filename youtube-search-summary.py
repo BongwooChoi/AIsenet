@@ -97,50 +97,41 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
 
-# 종목명으로 종목 코드 검색 함수
-def search_stock_symbol(stock_name):
-    # 한국 주식을 위한 접미사
-    suffixes = ['.KS', '.KQ']
-    
-    # 먼저 입력된 이름으로 직접 검색
-    try:
-        stock = yf.Ticker(stock_name)
-        info = stock.info
-        if info and isinstance(info, dict) and info.get('regularMarketPrice') is not None:
-            return stock_name
-    except Exception:
-        pass  # 오류 발생 시 다음 단계로 진행
 
-    # 한글 이름으로 검색
-    url = f"https://query1.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(stock_name)}&lang=ko-KR&region=KR&quotesCount=1&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query"
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    try:
-        response = requests.get(url, headers=headers)
-        data = response.json()
-        
-        if 'quotes' in data and len(data['quotes']) > 0:
-            symbol = data['quotes'][0]['symbol']
-            # 한국 주식인 경우 접미사 추가
-            for suffix in suffixes:
-                if symbol.endswith(suffix):
-                    return symbol
-            # 접미사가 없는 경우, .KS와 .KQ 모두 시도
-            for suffix in suffixes:
-                test_symbol = f"{symbol}{suffix}"
-                if is_valid_symbol(test_symbol):
-                    return test_symbol
-    except Exception as e:
-        st.error(f"종목 검색 중 오류 발생: {str(e)}")
+def get_stock_code(stock_name):
+    base_url = "https://symbol-search.tradingview.com/symbol_search/?text={}&hl=1&exchange=KRX&lang=ko&type=stock"
+    response = requests.get(base_url.format(stock_name))
+    data = response.json()
     
+    if data and len(data) > 0:
+        return data[0].get('symbol', '')
     return None
 
-def is_valid_symbol(symbol):
+# 종목코드로 검색 함수
+def search_stock_symbol(stock_input):
+    # 먼저 입력된 값이 종목 코드인지 확인
     try:
-        stock = yf.Ticker(symbol)
+        stock = yf.Ticker(stock_input)
         info = stock.info
-        return info and isinstance(info, dict) and info.get('regularMarketPrice') is not None
+        if info and isinstance(info, dict) and info.get('regularMarketPrice') is not None:
+            return stock_input
     except Exception:
-        return False
+        pass
+
+    stock_code = get_stock_code(stock_input)
+    if stock_code:
+        # 한국 주식의 경우 .KS(코스피) 또는 .KQ(코스닥) 접미사 추가
+        for suffix in ['.KS', '.KQ']:
+            full_code = f"{stock_code}{suffix}"
+            try:
+                stock = yf.Ticker(full_code)
+                info = stock.info
+                if info and isinstance(info, dict) and info.get('regularMarketPrice') is not None:
+                    return full_code
+            except Exception:
+                continue
+
+    return None
 
 # 재무정보 검색 함수
 def search_financial_info(stock_symbol):
