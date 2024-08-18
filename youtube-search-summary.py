@@ -118,20 +118,46 @@ def search_stock_symbol(stock_input):
     except Exception:
         pass
 
-    stock_code = get_stock_code(stock_input)
-    if stock_code:
-        # 한국 주식의 경우 .KS(코스피) 또는 .KQ(코스닥) 접미사 추가
-        for suffix in ['.KS', '.KQ']:
-            full_code = f"{stock_code}{suffix}"
-            try:
-                stock = yf.Ticker(full_code)
-                info = stock.info
-                if info and isinstance(info, dict) and info.get('regularMarketPrice') is not None:
-                    return full_code
-            except Exception:
-                continue
+    # TradingView API를 사용한 검색
+    try:
+        base_url = "https://symbol-search.tradingview.com/symbol_search/?text={}&hl=1&exchange=KRX&lang=ko&type=stock"
+        response = requests.get(base_url.format(stock_input))
+        if response.status_code == 200:
+            data = response.json()
+            if data and len(data) > 0:
+                stock_code = data[0].get('symbol', '')
+                if stock_code:
+                    for suffix in ['.KS', '.KQ']:
+                        full_code = f"{stock_code}{suffix}"
+                        if is_valid_symbol(full_code):
+                            return full_code
+    except Exception as e:
+        st.warning(f"TradingView API 검색 중 오류 발생: {str(e)}")
 
+    # Yahoo Finance 검색 API 사용 (백업 방법)
+    try:
+        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={stock_input}&lang=en-US&region=US&quotesCount=1&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            if 'quotes' in data and len(data['quotes']) > 0:
+                symbol = data['quotes'][0]['symbol']
+                if is_valid_symbol(symbol):
+                    return symbol
+    except Exception as e:
+        st.warning(f"Yahoo Finance API 검색 중 오류 발생: {str(e)}")
+
+    st.error(f"'{stock_input}'에 해당하는 유효한 주식 심볼을 찾을 수 없습니다.")
     return None
+
+def is_valid_symbol(symbol):
+    try:
+        stock = yf.Ticker(symbol)
+        info = stock.info
+        return info and isinstance(info, dict) and info.get('regularMarketPrice') is not None
+    except Exception:
+        return False
 
 # 재무정보 검색 함수
 def search_financial_info(stock_symbol):
