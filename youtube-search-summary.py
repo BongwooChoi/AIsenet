@@ -9,6 +9,7 @@ import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
+import io
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="📈", layout="wide")
@@ -102,7 +103,11 @@ def get_krx_stock_code(stock_name):
     try:
         # KRX에서 제공하는 상장법인목록 파일 다운로드
         url = "http://kind.krx.co.kr/corpgeneral/corpList.do?method=download&searchType=13"
-        df = pd.read_html(url, header=0)[0]
+        response = requests.get(url)
+        response.raise_for_status()  # 요청이 실패하면 예외를 발생시킵니다.
+        
+        # 다운로드한 내용을 메모리에서 읽고, 인코딩을 명시적으로 지정합니다.
+        df = pd.read_html(io.BytesIO(response.content), encoding='EUC-KR')[0]
         
         # 종목명으로 검색
         df = df[['회사명', '종목코드']]
