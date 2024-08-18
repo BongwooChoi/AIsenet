@@ -126,6 +126,39 @@ def search_financial_info(stock_symbol):
     except Exception as e:
         st.error(f"재무정보 검색 중 오류 발생: {str(e)}")
         return None
+        
+# 재무정보 시각화 함수 추가
+def visualize_financial_info(financial_info):
+    if not financial_info:
+        st.warning("시각화할 재무정보가 없습니다.")
+        return
+
+    # 손익계산서 시각화
+    income_df = pd.DataFrame(financial_info['income_statement']).T
+    st.subheader("손익계산서 시각화")
+    fig_income = go.Figure()
+    for column in income_df.columns:
+        fig_income.add_trace(go.Bar(x=income_df.index, y=income_df[column], name=column))
+    fig_income.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액")
+    st.plotly_chart(fig_income)
+
+    # 대차대조표 시각화
+    balance_df = pd.DataFrame(financial_info['balance_sheet']).T
+    st.subheader("대차대조표 시각화")
+    fig_balance = go.Figure()
+    for column in balance_df.columns:
+        fig_balance.add_trace(go.Bar(x=balance_df.index, y=balance_df[column], name=column))
+    fig_balance.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액")
+    st.plotly_chart(fig_balance)
+
+    # 현금흐름표 시각화
+    cash_flow_df = pd.DataFrame(financial_info['cash_flow_statement']).T
+    st.subheader("현금흐름표 시각화")
+    fig_cash_flow = go.Figure()
+    for column in cash_flow_df.columns:
+        fig_cash_flow.add_trace(go.Bar(x=cash_flow_df.index, y=cash_flow_df[column], name=column))
+    fig_cash_flow.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액")
+    st.plotly_chart(fig_cash_flow)
 
 # 재무정보 표시 함수
 def display_financial_info(financial_info):
