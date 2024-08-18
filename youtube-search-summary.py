@@ -311,7 +311,7 @@ with st.sidebar:
         additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
         period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
     else:
-        stock_input = st.text_input("주식 종목명 또는 종목 코드 입력 (예: Apple 또는 AAPL)")
+        stock_input = st.text_input("종목코드(티커) 입력 (예: AAPL)")
     search_button = st.button("검색 실행")
 
 # 검색 결과 저장용 세션 상태
