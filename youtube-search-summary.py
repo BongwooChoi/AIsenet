@@ -315,14 +315,20 @@ if search_button:
                 st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 도메인이나 검색어로 검색해보세요.")
     
     elif source == "재무정보":
-        if st.session_state.search_results['financial_info']:
-            st.subheader(f"{stock_input}의 재무정보 분석")
-            if st.session_state.summary:
-                st.markdown(st.session_state.summary, unsafe_allow_html=True)
+        with st.spinner(f"{stock_input}의 재무정보를 검색하고 있습니다..."):
+            stock_symbol = search_stock_symbol(stock_input) if not stock_input.isalpha() else stock_input
+            if stock_symbol:
+                financial_info = search_financial_info(stock_symbol)
+                st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': financial_info}
+                st.session_state.total_results = 1 if financial_info else 0
+                
+                if financial_info:
+                    with st.spinner("재무정보를 분석 중입니다..."):
+                        st.session_state.summary = analyze_financial_info(financial_info, stock_symbol)
+                else:
+                    st.warning(f"{stock_input}의 재무정보를 찾을 수 없습니다. 올바른 종목명 또는 종목 코드인지 확인해주세요.")
             else:
-                st.info("재무정보 분석 중입니다. 잠시만 기다려주세요.")
-        else:
-            st.warning("재무정보를 찾을 수 없습니다.")
+                st.warning(f"{stock_input}에 해당하는 종목을 찾을 수 없습니다.")
 
 # 검색 결과 표시
 if source == "YouTube":
@@ -376,14 +382,15 @@ with col2:
     if st.session_state.summary:
         download_summary_file(st.session_state.summary)
 
-if source != "재무정보":
-    if st.session_state.summary:
-        st.markdown(st.session_state.summary, unsafe_allow_html=True)
+if st.session_state.summary:
+    st.markdown(st.session_state.summary, unsafe_allow_html=True)
+else:
+    if source == "YouTube":
+        st.write("검색 결과에서 요약할 영상을 선택하세요.")
+    elif source == "뉴스":
+        st.write("뉴스 검색 결과가 없습니다.")
     else:
-        if source == "YouTube":
-            st.write("검색 결과에서 요약할 영상을 선택하세요.")
-        elif source == "뉴스":
-            st.write("뉴스 검색 결과가 없습니다.")
+        st.write("재무정보 검색 결과가 없습니다.")
 st.markdown('</div>', unsafe_allow_html=True)
 
 # 주의사항 및 안내
