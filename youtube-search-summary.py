@@ -127,93 +127,52 @@ def search_financial_info(stock_symbol):
         st.error(f"재무정보 검색 중 오류 발생: {str(e)}")
         return None
         
-# 재무정보 표시 함수
-def display_financial_info(financial_info):
-    if financial_info:
-        for statement_type, data in financial_info.items():
-            if data:
-                st.subheader(get_statement_title(statement_type))
-                df = pd.DataFrame(data).T
-                df.index.name = '날짜'
-                df.columns = get_column_names(statement_type, df.columns)
-                st.dataframe(df)
-            else:
-                st.warning(f"{get_statement_title(statement_type)}을(를) 찾을 수 없습니다.")
-    else:
-        st.warning("재무정보를 찾을 수 없습니다.")
-
-# 재무정보 시각화 함수
+# 재무정보 시각화 함수 추가
 def visualize_financial_info(financial_info):
     if not financial_info:
         st.warning("시각화할 재무정보가 없습니다.")
         return
 
-    for statement_type, data in financial_info.items():
-        if data:
-            df = pd.DataFrame(data).T
-            df.columns = get_column_names(statement_type, df.columns)
-            st.subheader(f"{get_statement_title(statement_type)} 시각화")
-            fig = go.Figure()
-            for column in df.columns:
-                fig.add_trace(go.Bar(x=df.index, y=df[column], name=column))
-            fig.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액 (원)")
-            st.plotly_chart(fig)
-        else:
-            st.warning(f"{get_statement_title(statement_type)} 데이터를 시각화할 수 없습니다.")
+    # 손익계산서 시각화
+    income_df = pd.DataFrame(financial_info['income_statement']).T
+    st.subheader("손익계산서 시각화")
+    fig_income = go.Figure()
+    for column in income_df.columns:
+        fig_income.add_trace(go.Bar(x=income_df.index, y=income_df[column], name=column))
+    fig_income.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액")
+    st.plotly_chart(fig_income)
 
-# 재무제표 타입에 따른 제목 반환 함수
-def get_statement_title(statement_type):
-    titles = {
-        'income_statement': '손익계산서',
-        'balance_sheet': '대차대조표',
-        'cash_flow_statement': '현금흐름표'
-    }
-    return titles.get(statement_type, '알 수 없는 재무제표')
+    # 대차대조표 시각화
+    balance_df = pd.DataFrame(financial_info['balance_sheet']).T
+    st.subheader("대차대조표 시각화")
+    fig_balance = go.Figure()
+    for column in balance_df.columns:
+        fig_balance.add_trace(go.Bar(x=balance_df.index, y=balance_df[column], name=column))
+    fig_balance.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액")
+    st.plotly_chart(fig_balance)
 
-# 재무제표 타입에 따른 열 이름 반환 함수
-def get_column_names(statement_type, original_columns):
-    column_mappings = {
-        'income_statement': {
-            'Total Revenue': '총수익',
-            'Cost of Revenue': '매출원가',
-            'Gross Profit': '매출총이익',
-            'Operating Expense': '영업비용',
-            'Operating Income': '영업이익',
-            'Interest Expense': '이자비용',
-            'Income Before Tax': '세전이익',
-            'Income Tax Expense': '법인세',
-            'Net Income': '당기순이익'
-        },
-        'balance_sheet': {
-            'Cash': '현금및현금성자산',
-            'Short Term Investments': '단기투자자산',
-            'Net Receivables': '매출채권',
-            'Inventory': '재고자산',
-            'Total Current Assets': '유동자산계',
-            'Property Plant Equipment': '유형자산',
-            'Goodwill': '무형자산',
-            'Total Assets': '자산총계',
-            'Accounts Payable': '매입채무',
-            'Short Long Term Debt': '단기차입금',
-            'Total Current Liabilities': '유동부채계',
-            'Long Term Debt': '장기차입금',
-            'Total Liabilities': '부채총계',
-            'Common Stock': '자본금',
-            'Retained Earnings': '이익잉여금',
-            'Total Stockholder Equity': '자본총계'
-        },
-        'cash_flow_statement': {
-            'Operating Cash Flow': '영업활동현금흐름',
-            'Investing Cash Flow': '투자활동현금흐름',
-            'Financing Cash Flow': '재무활동현금흐름',
-            'Cash Flow': '현금및현금성자산의순증감',
-            'Beginning Cash Position': '기초현금및현금성자산',
-            'End Cash Position': '기말현금및현금성자산'
-        }
-    }
-    
-    mapping = column_mappings.get(statement_type, {})
-    return [mapping.get(col, col) for col in original_columns]
+    # 현금흐름표 시각화
+    cash_flow_df = pd.DataFrame(financial_info['cash_flow_statement']).T
+    st.subheader("현금흐름표 시각화")
+    fig_cash_flow = go.Figure()
+    for column in cash_flow_df.columns:
+        fig_cash_flow.add_trace(go.Bar(x=cash_flow_df.index, y=cash_flow_df[column], name=column))
+    fig_cash_flow.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액")
+    st.plotly_chart(fig_cash_flow)
+
+# 재무정보 표시 함수
+def display_financial_info(financial_info):
+    if financial_info:
+        st.subheader("손익계산서")
+        st.dataframe(pd.DataFrame(financial_info['income_statement']).T)
+        
+        st.subheader("대차대조표")
+        st.dataframe(pd.DataFrame(financial_info['balance_sheet']).T)
+        
+        st.subheader("현금흐름표")
+        st.dataframe(pd.DataFrame(financial_info['cash_flow_statement']).T)
+    else:
+        st.warning("재무정보를 찾을 수 없습니다.")
 
 # 조회 기간 선택 함수
 def get_published_after(option):
