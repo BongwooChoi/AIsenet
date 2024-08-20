@@ -212,7 +212,14 @@ def analyze_financial_info(financial_data, stock_symbol):
         model = genai.GenerativeModel('gemini-1.5-flash')
         
         # 재무 데이터를 문자열로 변환
-        financial_info = "\n".join([f"{key}:\n{value.to_string()}" for key, value in financial_data.items()])
+        financial_info = ""
+        for key, value in financial_data.items():
+            financial_info += f"{key}:\n"
+            if isinstance(value, dict):
+                df = pd.DataFrame(value)
+                financial_info += df.to_string() + "\n\n"
+            else:
+                financial_info += str(value) + "\n\n"
         
         prompt = f"""
 다음은 {stock_symbol} 주식의 재무정보입니다. 이 정보를 바탕으로 종합적인 재무 분석 보고서를 작성해주세요. 보고서는 다음 형식을 참고하여 작성해주세요:
@@ -243,15 +250,6 @@ def analyze_financial_info(financial_data, stock_symbol):
         return analysis
     except Exception as e:
         return f"분석 중 오류가 발생했습니다: {str(e)}"
-
-# 파일로 다운로드할 수 있는 함수
-def download_summary_file(summary_text, file_name="summary.txt"):
-    st.download_button(
-        label="다운로드",
-        data=summary_text,
-        file_name=file_name,
-        mime="text/plain"
-    )
 
 # Streamlit 앱
 st.title("📈 AI 금융정보 검색 및 분석 서비스")
