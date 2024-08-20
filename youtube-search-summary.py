@@ -126,53 +126,6 @@ def search_financial_info(stock_symbol):
     except Exception as e:
         st.error(f"재무정보 검색 중 오류 발생: {str(e)}")
         return None
-        
-# 재무정보 시각화 함수 추가
-def visualize_financial_info(financial_info):
-    if not financial_info:
-        st.warning("시각화할 재무정보가 없습니다.")
-        return
-
-    # 손익계산서 시각화
-    income_df = pd.DataFrame(financial_info['income_statement']).T
-    st.subheader("손익계산서 시각화")
-    fig_income = go.Figure()
-    for column in income_df.columns:
-        fig_income.add_trace(go.Bar(x=income_df.index, y=income_df[column], name=column))
-    fig_income.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액")
-    st.plotly_chart(fig_income)
-
-    # 대차대조표 시각화
-    balance_df = pd.DataFrame(financial_info['balance_sheet']).T
-    st.subheader("대차대조표 시각화")
-    fig_balance = go.Figure()
-    for column in balance_df.columns:
-        fig_balance.add_trace(go.Bar(x=balance_df.index, y=balance_df[column], name=column))
-    fig_balance.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액")
-    st.plotly_chart(fig_balance)
-
-    # 현금흐름표 시각화
-    cash_flow_df = pd.DataFrame(financial_info['cash_flow_statement']).T
-    st.subheader("현금흐름표 시각화")
-    fig_cash_flow = go.Figure()
-    for column in cash_flow_df.columns:
-        fig_cash_flow.add_trace(go.Bar(x=cash_flow_df.index, y=cash_flow_df[column], name=column))
-    fig_cash_flow.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액")
-    st.plotly_chart(fig_cash_flow)
-
-# 재무정보 표시 함수
-def display_financial_info(financial_info):
-    if financial_info:
-        st.subheader("손익계산서")
-        st.dataframe(pd.DataFrame(financial_info['income_statement']).T)
-        
-        st.subheader("대차대조표")
-        st.dataframe(pd.DataFrame(financial_info['balance_sheet']).T)
-        
-        st.subheader("현금흐름표")
-        st.dataframe(pd.DataFrame(financial_info['cash_flow_statement']).T)
-    else:
-        st.warning("재무정보를 찾을 수 없습니다.")
 
 # 조회 기간 선택 함수
 def get_published_after(option):
@@ -259,7 +212,7 @@ def analyze_financial_info(financial_data, stock_symbol):
         model = genai.GenerativeModel('gemini-1.5-flash')
         
         # 재무 데이터를 문자열로 변환
-        financial_info = "\n".join([f"{key}: {value}" for key, value in financial_data.items()])
+        financial_info = "\n".join([f"{key}:\n{value.to_string()}" for key, value in financial_data.items()])
         
         prompt = f"""
 다음은 {stock_symbol} 주식의 재무정보입니다. 이 정보를 바탕으로 종합적인 재무 분석 보고서를 작성해주세요. 보고서는 다음 형식을 참고하여 작성해주세요:
@@ -273,7 +226,9 @@ def analyze_financial_info(financial_data, stock_symbol):
 4. 리스크 요인
 5. 향후 전망 및 투자 의견
 
-보고서는 한국어로 작성해주세요. 분석 시 객관성을 유지하고, 편향된 의견을 제시하지 않도록 주의해주세요.
+분석 시 객관성을 유지하고, 편향된 의견을 제시하지 않도록 주의해주세요. 
+또한, 주요 재무 데이터를 표 형태로 정리하여 보고서에 포함시켜주세요. 
+표는 Markdown 형식을 사용하여 작성해주세요.
 
 재무 정보:
 {financial_info}
@@ -399,9 +354,8 @@ elif source == "뉴스":
 
 elif source == "재무정보":
     if st.session_state.search_results['financial_info']:
-        st.subheader(f"{stock_input}의 재무정보")
-        display_financial_info(st.session_state.search_results['financial_info'])
-        visualize_financial_info(st.session_state.search_results['financial_info'])
+        st.subheader(f"{stock_input}의 재무정보 분석")
+        st.markdown(st.session_state.summary)
     else:
         st.warning("재무정보를 찾을 수 없습니다.")
 
@@ -420,7 +374,7 @@ with col2:
         download_summary_file(st.session_state.summary)
 
 if st.session_state.summary:
-    st.markdown(f'<div class="scrollable-container">{st.session_state.summary}</div>', unsafe_allow_html=True)
+    st.markdown(st.session_state.summary, unsafe_allow_html=True)
 else:
     if source == "YouTube":
         st.write("검색 결과에서 요약할 영상을 선택하세요.")
