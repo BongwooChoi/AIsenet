@@ -135,42 +135,78 @@ def visualize_financial_info(financial_info):
 
     # 손익계산서 시각화
     income_df = pd.DataFrame(financial_info['income_statement']).T
+    income_df.columns = [
+        '총수익', '매출원가', '매출총이익', '영업비용', '영업이익',
+        '이자비용', '세전이익', '법인세', '당기순이익'
+    ]
     st.subheader("손익계산서 시각화")
     fig_income = go.Figure()
     for column in income_df.columns:
         fig_income.add_trace(go.Bar(x=income_df.index, y=income_df[column], name=column))
-    fig_income.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액")
+    fig_income.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액 (원)")
     st.plotly_chart(fig_income)
 
     # 대차대조표 시각화
     balance_df = pd.DataFrame(financial_info['balance_sheet']).T
+    balance_df.columns = [
+        '현금및현금성자산', '단기투자자산', '매출채권', '재고자산', '유동자산계',
+        '유형자산', '무형자산', '비유동자산계', '자산총계',
+        '매입채무', '단기차입금', '유동부채계',
+        '장기차입금', '비유동부채계', '부채총계',
+        '자본금', '이익잉여금', '자본총계'
+    ]
     st.subheader("대차대조표 시각화")
     fig_balance = go.Figure()
     for column in balance_df.columns:
         fig_balance.add_trace(go.Bar(x=balance_df.index, y=balance_df[column], name=column))
-    fig_balance.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액")
+    fig_balance.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액 (원)")
     st.plotly_chart(fig_balance)
 
     # 현금흐름표 시각화
     cash_flow_df = pd.DataFrame(financial_info['cash_flow_statement']).T
+    cash_flow_df.columns = [
+        '영업활동현금흐름', '투자활동현금흐름', '재무활동현금흐름',
+        '현금및현금성자산의순증감', '기초현금및현금성자산', '기말현금및현금성자산'
+    ]
     st.subheader("현금흐름표 시각화")
     fig_cash_flow = go.Figure()
     for column in cash_flow_df.columns:
         fig_cash_flow.add_trace(go.Bar(x=cash_flow_df.index, y=cash_flow_df[column], name=column))
-    fig_cash_flow.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액")
+    fig_cash_flow.update_layout(barmode='group', xaxis_title="날짜", yaxis_title="금액 (원)")
     st.plotly_chart(fig_cash_flow)
 
 # 재무정보 표시 함수
 def display_financial_info(financial_info):
     if financial_info:
         st.subheader("손익계산서")
-        st.dataframe(pd.DataFrame(financial_info['income_statement']).T)
+        income_df = pd.DataFrame(financial_info['income_statement']).T
+        income_df.index.name = '날짜'
+        income_df.columns = [
+            '총수익', '매출원가', '매출총이익', '영업비용', '영업이익',
+            '이자비용', '세전이익', '법인세', '당기순이익'
+        ]
+        st.dataframe(income_df)
         
         st.subheader("대차대조표")
-        st.dataframe(pd.DataFrame(financial_info['balance_sheet']).T)
+        balance_df = pd.DataFrame(financial_info['balance_sheet']).T
+        balance_df.index.name = '날짜'
+        balance_df.columns = [
+            '현금및현금성자산', '단기투자자산', '매출채권', '재고자산', '유동자산계',
+            '유형자산', '무형자산', '비유동자산계', '자산총계',
+            '매입채무', '단기차입금', '유동부채계',
+            '장기차입금', '비유동부채계', '부채총계',
+            '자본금', '이익잉여금', '자본총계'
+        ]
+        st.dataframe(balance_df)
         
         st.subheader("현금흐름표")
-        st.dataframe(pd.DataFrame(financial_info['cash_flow_statement']).T)
+        cash_flow_df = pd.DataFrame(financial_info['cash_flow_statement']).T
+        cash_flow_df.index.name = '날짜'
+        cash_flow_df.columns = [
+            '영업활동현금흐름', '투자활동현금흐름', '재무활동현금흐름',
+            '현금및현금성자산의순증감', '기초현금및현금성자산', '기말현금및현금성자산'
+        ]
+        st.dataframe(cash_flow_df)
     else:
         st.warning("재무정보를 찾을 수 없습니다.")
 
