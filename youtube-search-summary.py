@@ -251,6 +251,17 @@ def analyze_financial_info(financial_data, stock_symbol):
     except Exception as e:
         return f"분석 중 오류가 발생했습니다: {str(e)}"
 
+
+# 파일로 다운로드할 수 있는 함수
+def download_summary_file(summary_text, file_name="summary.txt"):
+    st.download_button(
+        label="다운로드",
+        data=summary_text,
+        file_name=file_name,
+        mime="text/plain"
+    )
+
+
 # Streamlit 앱
 st.title("📈 AI 금융정보 검색 및 분석 서비스")
 st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영상, 뉴스, 그리고 주식 재무정보를 검색하고 AI를 이용해 분석 정보를 제공합니다. 좌측 사이드바에서 검색 조건을 선택하고 검색해보세요.")
