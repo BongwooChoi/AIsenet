@@ -361,13 +361,6 @@ elif source == "뉴스":
         st.markdown(f"[기사 보기]({article['url']})")
         st.divider()
 
-elif source == "재무정보":
-    if st.session_state.search_results['financial_info']:
-        st.subheader(f"{stock_input}의 재무정보 분석")
-#        st.markdown(st.session_state.summary)
-    else:
-        st.warning("재무정보를 찾을 수 없습니다.")
-
 # 요약 결과 표시 및 다운로드 버튼
 st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
 col1, col2 = st.columns([0.85, 0.15])  # 열을 비율로 분할
