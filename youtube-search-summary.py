@@ -364,7 +364,7 @@ elif source == "뉴스":
 elif source == "재무정보":
     if st.session_state.search_results['financial_info']:
         st.subheader(f"{stock_input}의 재무정보 분석")
-        st.markdown(st.session_state.summary)
+#        st.markdown(st.session_state.summary)
     else:
         st.warning("재무정보를 찾을 수 없습니다.")
 
