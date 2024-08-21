@@ -26,10 +26,6 @@ FINANCE_DOMAINS = {
     "경제일반": ["경제", "금융", "무역", "물가", "인플레이션", "국내총생산", "GDP", "소비자물가지수", "생산자물가지수","CPI", "고용", "수출", "소비"]
 }
 
-# 미국 및 한국 주요 기업 리스트
-US_TOP_COMPANIES = yf.tickers_sp500()
-KR_TOP_COMPANIES = ['005930.KS', '000660.KS', '035420.KS', '051910.KS', '068270.KS']
-
 # 뉴스 검색 함수 (Serp API 사용)
 def search_news(domain, additional_query, published_after, max_results=10):
     api_key = st.secrets["SERP_API_KEY"]
@@ -279,21 +275,7 @@ with st.sidebar:
         additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
         period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
     else:
-        st.header("종목 선택")
-        option = st.selectbox("기업을 선택하세요:", [""] + US_TOP_COMPANIES + KR_TOP_COMPANIES)
-        
-        if option:
-            stock_symbol = option
-            with st.spinner(f"{stock_symbol}의 재무정보를 검색하고 있습니다..."):
-                financial_info = search_financial_info(stock_symbol)
-                st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': financial_info}
-                st.session_state.total_results = 1 if financial_info else 0
-                
-                if financial_info:
-                    with st.spinner("재무정보를 분석 중입니다..."):
-                        st.session_state.summary = analyze_financial_info(financial_info, stock_symbol)
-                else:
-                    st.warning(f"{stock_symbol}의 재무정보를 찾을 수 없습니다.")
+        stock_input = st.text_input("종목코드(티커) 입력 (예: AAPL)")
     search_button = st.button("검색 실행")
 
 # 검색 결과 저장용 세션 상태
