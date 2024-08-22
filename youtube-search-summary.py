@@ -26,6 +26,34 @@ FINANCE_DOMAINS = {
     "경제일반": ["경제", "금융", "무역", "물가", "인플레이션", "국내총생산", "GDP", "소비자물가지수", "생산자물가지수","CPI", "고용", "수출", "소비"]
 }
 
+# 주요 미국 및 한국 주식 리스트
+MAJOR_STOCKS = {
+    "미국 주식": [
+        "Apple Inc. (AAPL)",
+        "Microsoft Corporation (MSFT)",
+        "Amazon.com Inc. (AMZN)",
+        "Alphabet Inc. (GOOGL)",
+        "Facebook, Inc. (FB)",
+        "Tesla, Inc. (TSLA)",
+        "NVIDIA Corporation (NVDA)",
+        "JPMorgan Chase & Co. (JPM)",
+        "Johnson & Johnson (JNJ)",
+        "Visa Inc. (V)"
+    ],
+    "한국 주식": [
+        "삼성전자 (005930.KS)",
+        "SK하이닉스 (000660.KS)",
+        "NAVER (035420.KS)",
+        "카카오 (035720.KS)",
+        "현대자동차 (005380.KS)",
+        "LG화학 (051910.KS)",
+        "KB금융 (105560.KS)",
+        "신한지주 (055550.KS)",
+        "삼성바이오로직스 (207940.KS)",
+        "셀트리온 (068270.KS)"
+    ]
+}
+
 # 뉴스 검색 함수 (Serp API 사용)
 def search_news(domain, additional_query, published_after, max_results=10):
     api_key = st.secrets["SERP_API_KEY"]
@@ -275,7 +303,13 @@ with st.sidebar:
         additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
         period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
     else:
-        stock_input = st.text_input("종목코드(티커) 입력 (예: AAPL)")
+        stock_input_method = st.radio("종목 선택 방법", ("목록에서 선택", "직접 입력"))
+        if stock_input_method == "목록에서 선택":
+            stock_market = st.selectbox("주식 시장 선택", ["미국 주식", "한국 주식"])
+            stock_selection = st.selectbox("종목 선택", MAJOR_STOCKS[stock_market])
+            stock_input = stock_selection.split('(')[1].split(')')[0]  # 괄호 안의 종목 코드 추출
+        else:
+            stock_input = st.text_input("종목코드(티커) 직접 입력 (예: AAPL)")
     search_button = st.button("검색 실행")
 
 # 검색 결과 저장용 세션 상태
