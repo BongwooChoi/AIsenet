@@ -33,7 +33,7 @@ MAJOR_STOCKS = {
         "Microsoft Corporation (MSFT)",
         "Amazon.com Inc. (AMZN)",
         "Alphabet Inc. (GOOGL)",
-        "Facebook, Inc. (FB)",
+        "Meta Platforms, Inc. (META)",
         "Tesla, Inc. (TSLA)",
         "NVIDIA Corporation (NVDA)",
         "JPMorgan Chase & Co. (JPM)",
@@ -43,14 +43,9 @@ MAJOR_STOCKS = {
     "한국 주식": [
         "삼성전자 (005930.KS)",
         "SK하이닉스 (000660.KS)",
-        "NAVER (035420.KS)",
-        "카카오 (035720.KS)",
         "현대자동차 (005380.KS)",
-        "LG화학 (051910.KS)",
-        "KB금융 (105560.KS)",
-        "신한지주 (055550.KS)",
-        "삼성바이오로직스 (207940.KS)",
-        "셀트리온 (068270.KS)"
+        "NAVER (035420.KS)",
+        "카카오 (035720.KS)"
     ]
 }
 
