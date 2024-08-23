@@ -37,8 +37,7 @@ MAJOR_STOCKS = [
     "NVIDIA Corporation (NVDA)",
     "JPMorgan Chase & Co. (JPM)",
     "Johnson & Johnson (JNJ)",
-    "Visa Inc. (V)",
-    "KB Financial Group Inc. (105560.KS)"
+    "Visa Inc. (V)"
 ]
 
 # 뉴스 검색 함수 (Serp API 사용)
