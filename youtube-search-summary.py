@@ -251,6 +251,7 @@ def analyze_financial_info(financial_data, stock_symbol, stock_name):
 
 주요 재무 데이터를 표 형태로 정리하여 보고서에 포함시켜주세요.
 표를 작성할 때 단위를 명시해주세요.
+손익 관련 지표는 금액과 비율을 같이 표시해주세요.
 수치가 커서 지수 형태로 표현되지 않게 단위를 조정해주세요.(백만단위, 억단위 등) 
 표는 Markdown 형식을 사용하여 작성해주세요.
 
