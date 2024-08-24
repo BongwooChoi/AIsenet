@@ -96,7 +96,7 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         )
         response = request.execute()
         
-        # st.write(f"검색된 총 비디오 수: {len(response['items'])}")  # 디버깅용 로그
+        # st.write(f"🎦 검색된 총 비디오 수: {len(response['items'])}")  # 디버깅용 로그
 
         videos_with_transcript = []
         for item in response['items']:
@@ -362,7 +362,7 @@ if search_button:
 
 # 검색 결과 표시
 if source == "YouTube":
-    st.subheader(f"검색된 총 YouTube 영상: {st.session_state.total_results}개")
+    st.subheader(f"🎦 검색된 총 YouTube 영상: {st.session_state.total_results}개")
     for video in st.session_state.search_results['videos']:
         col1, col2 = st.columns([1, 2])
         with col1:
@@ -383,7 +383,7 @@ if source == "YouTube":
         st.divider()
 
 elif source == "뉴스":
-    st.subheader(f"검색된 총 뉴스 기사: {st.session_state.total_results}개")
+    st.subheader(f"📰 검색된 총 뉴스 기사: {st.session_state.total_results}개")
     for i, article in enumerate(st.session_state.search_results['news']):
         st.subheader(article['title'])
         st.markdown(f"**출처:** {article['source']['name']}")
