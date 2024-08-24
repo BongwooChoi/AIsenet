@@ -6,3 +6,4 @@ youtube_transcript_api
 requests
 plotly
 yfinance
+pykrx
