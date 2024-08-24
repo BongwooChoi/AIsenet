@@ -223,7 +223,7 @@ def analyze_news_articles(articles):
 # 재무정보 분석
 def analyze_financial_info(financial_data, stock_symbol):
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-pro')
         
         # 재무 데이터를 문자열로 변환
         financial_info = ""
