@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 import yfinance as yf
 
 # Streamlit 앱 설정
-st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="📈", layout="wide")
+st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="🤖", layout="wide")
 
 # API 키 설정
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
@@ -281,7 +281,7 @@ def download_summary_file(summary_text, file_name="summary.txt"):
 
 
 # Streamlit 앱
-st.title("📈 AI 금융정보 검색 및 분석 서비스")
+st.title("🤖 AI 금융정보 검색 및 분석 서비스")
 st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영상, 뉴스, 그리고 주식 재무정보를 검색하고 AI를 이용해 분석 정보를 제공합니다. 좌측 사이드바에서 검색 조건을 선택하고 검색해보세요.")
 
 # 사이드바에 검색 조건 배치
@@ -376,7 +376,7 @@ if source == "YouTube":
             
             video_id = video['id']['videoId']
             video_title = video['snippet']['title']
-            if st.button(f"요약 보고서 요청 (결과는 화면 하단에서 확인하세요.)", key=f"summarize_{video_id}"):
+            if st.button(f"📋 요약 보고서 요청", key=f"summarize_{video_id}"):
                 with st.spinner("영상을 요약하는 중..."):
                     summary = summarize_video(video_id, video_title)
                     st.session_state.summary = summary
@@ -396,11 +396,11 @@ st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
 col1, col2 = st.columns([0.85, 0.15])  # 열을 비율로 분할
 with col1:
     if source == "YouTube":
-        st.subheader("영상 요약 보고서")
+        st.subheader("🎦 영상 요약 보고서")
     elif source == "뉴스":
-        st.subheader("뉴스 종합 분석 보고서")
+        st.subheader("📰 뉴스 종합 분석 보고서")
     else:
-        st.subheader("재무정보 분석 보고서")
+        st.subheader("📈 재무정보 분석 보고서")
 with col2:
     if st.session_state.summary:
         download_summary_file(st.session_state.summary)
