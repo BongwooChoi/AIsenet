@@ -38,7 +38,10 @@ MAJOR_STOCKS = [
     "JPMorgan Chase & Co. (JPM)",
     "Johnson & Johnson (JNJ)",
     "Visa Inc. (V)",
-    "Realty Income Corporation (O)"
+    "Realty Income Corporation (O)",
+    "Starbucks Corporation (SBUX)",
+    "McDonald's Corporation (MCD)
+"
 ]
 
 # 뉴스 검색 함수 (Serp API 사용)
