@@ -271,7 +271,7 @@ def analyze_financial_info(financial_data, stock_symbol, stock_name):
 # 파일로 다운로드할 수 있는 함수
 def download_summary_file(summary_text, file_name="summary.txt"):
     st.download_button(
-        label="다운로드",
+        label="💾 다운로드",
         data=summary_text,
         file_name=file_name,
         mime="text/plain"
