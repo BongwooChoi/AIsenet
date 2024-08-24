@@ -360,7 +360,7 @@ if search_button:
 
 # 검색 결과 표시
 if source == "YouTube":
-    st.subheader(f"🎦 검색된 YouTube 영상: {st.session_state.total_results}개")
+    st.subheader(f"🎦 검색된 YouTube 영상")
     for video in st.session_state.search_results['videos']:
         col1, col2 = st.columns([1, 2])
         with col1:
@@ -381,7 +381,7 @@ if source == "YouTube":
         st.divider()
 
 elif source == "뉴스":
-    st.subheader(f"📰 검색된 뉴스 기사: {st.session_state.total_results}개")
+    st.subheader(f"📰 검색된 뉴스 기사")
     for i, article in enumerate(st.session_state.search_results['news']):
         st.subheader(article['title'])
         st.markdown(f"**출처:** {article['source']['name']}")
