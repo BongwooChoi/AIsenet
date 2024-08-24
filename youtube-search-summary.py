@@ -9,6 +9,7 @@ import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
+from pykrx import stock
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="📈", layout="wide")
@@ -113,33 +114,59 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
 
 # 종목명으로 종목 코드 검색 함수
 def search_stock_symbol(stock_name):
+    # 한국 주식 검색
+    krx_ticker = stock.get_market_ticker_list()
+    krx_name = stock.get_market_ticker_name(krx_ticker)
+    kr_stock_dict = dict(zip(krx_name, krx_ticker))
+    
+    if stock_name in kr_stock_dict:
+        return kr_stock_dict[stock_name], 'KR'
+    
+    # 미국 주식 검색
     url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(stock_name)}&quotesCount=1&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query"
     headers = {'User-Agent': 'Mozilla/5.0'}
     response = requests.get(url, headers=headers)
     data = response.json()
     
     if 'quotes' in data and len(data['quotes']) > 0:
-        return data['quotes'][0]['symbol']
-    return None
+        return data['quotes'][0]['symbol'], 'US'
+    
+    return None, None
 
 # 재무정보 검색 함수 수정
-def search_financial_info(stock_symbol):
+def search_financial_info(stock_symbol, market):
     try:
-        stock = yf.Ticker(stock_symbol)
-        
-        # 기본 재무제표 정보 가져오기
-        income_statement = stock.financials
-        balance_sheet = stock.balance_sheet
-        cash_flow = stock.cashflow
-        
-        return {
-            'income_statement': income_statement.to_dict(),
-            'balance_sheet': balance_sheet.to_dict(),
-            'cash_flow_statement': cash_flow.to_dict()
-        }
+        if market == 'KR':
+            # 한국 주식 재무 정보 가져오기
+            financial_data = {}
+            
+            # 재무제표 가져오기
+            fs = stock.get_financial_statement(stock_symbol)
+            financial_data['income_statement'] = fs[fs.index.get_level_values(1) == '손익계산서']
+            financial_data['balance_sheet'] = fs[fs.index.get_level_values(1) == '재무상태표']
+            financial_data['cash_flow_statement'] = fs[fs.index.get_level_values(1) == '현금흐름표']
+            
+            # 주가 정보 가져오기
+            end_date = datetime.now().strftime('%Y%m%d')
+            start_date = (datetime.now() - timedelta(days=365)).strftime('%Y%m%d')
+            df_price = stock.get_market_ohlcv(start_date, end_date, stock_symbol)
+            financial_data['stock_price'] = df_price
+            
+            return financial_data
+        else:
+            # 미국 주식 재무 정보 가져오기
+            stock_data = yf.Ticker(stock_symbol)
+            
+            return {
+                'income_statement': stock_data.financials.to_dict(),
+                'balance_sheet': stock_data.balance_sheet.to_dict(),
+                'cash_flow_statement': stock_data.cashflow.to_dict(),
+                'stock_price': stock_data.history(period="1y")
+            }
     except Exception as e:
         st.error(f"재무정보 검색 중 오류 발생: {str(e)}")
         return None
+
 
 # 조회 기간 선택 함수
 def get_published_after(option):
@@ -221,7 +248,7 @@ def analyze_news_articles(articles):
         return f"분석 중 오류가 발생했습니다: {str(e)}"
 
 # 재무정보 분석
-def analyze_financial_info(financial_data, stock_symbol):
+def analyze_financial_info(financial_data, stock_symbol, market):
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
         
@@ -229,7 +256,9 @@ def analyze_financial_info(financial_data, stock_symbol):
         financial_info = ""
         for key, value in financial_data.items():
             financial_info += f"{key}:\n"
-            if isinstance(value, dict):
+            if isinstance(value, pd.DataFrame):
+                financial_info += value.to_string() + "\n\n"
+            elif isinstance(value, dict):
                 df = pd.DataFrame(value)
                 financial_info += df.to_string() + "\n\n"
             else:
@@ -252,6 +281,8 @@ def analyze_financial_info(financial_data, stock_symbol):
 분석 시 객관성을 유지하고, 편향된 의견을 제시하지 않도록 주의해주세요. 
 또한, 주요 재무 데이터를 표 형태로 정리하여 보고서에 포함시켜주세요. 
 표는 Markdown 형식을 사용하여 작성해주세요.
+
+이 주식은 {'한국' if market == 'KR' else '미국'} 시장에 상장되어 있습니다. 분석 시 해당 시장의 특성을 고려해주세요.
 
 재무 정보:
 {financial_info}
@@ -291,12 +322,22 @@ with st.sidebar:
         additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
         period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
     else:
+        stock_market = st.radio("주식 시장 선택", ("미국", "한국"))
         stock_input_method = st.radio("종목 선택 방법", ("목록에서 선택", "직접 입력"))
         if stock_input_method == "목록에서 선택":
-            stock_selection = st.selectbox("종목 선택", MAJOR_STOCKS)
-            stock_input = stock_selection.split('(')[1].split(')')[0]  # 괄호 안의 종목 코드 추출
+            if stock_market == "미국":
+                stock_selection = st.selectbox("종목 선택", MAJOR_STOCKS)
+                stock_input = stock_selection.split('(')[1].split(')')[0]  # 괄호 안의 종목 코드 추출
+            else:
+                # 한국 주요 종목 리스트를 추가해야 합니다.
+                MAJOR_KR_STOCKS = ["삼성전자", "SK하이닉스", "네이버", "카카오", "현대차", "POSCO홀딩스", "LG화학", "삼성바이오로직스", "셀트리온", "KB금융"]
+                stock_selection = st.selectbox("종목 선택", MAJOR_KR_STOCKS)
+                stock_input = stock_selection
         else:
-            stock_input = st.text_input("종목코드(티커) 직접 입력 (예: AAPL)")
+            if stock_market == "미국":
+                stock_input = st.text_input("종목코드(티커) 직접 입력 (예: AAPL)")
+            else:
+                stock_input = st.text_input("종목명 직접 입력 (예: 삼성전자)")
     search_button = st.button("검색 실행")
 
 # 검색 결과 저장용 세션 상태
@@ -337,15 +378,15 @@ if search_button:
     
     elif source == "재무정보":
         with st.spinner(f"{stock_input}의 재무정보를 검색하고 있습니다..."):
-            stock_symbol = search_stock_symbol(stock_input) if not stock_input.isalpha() else stock_input
+            stock_symbol, market = search_stock_symbol(stock_input)
             if stock_symbol:
-                financial_info = search_financial_info(stock_symbol)
+                financial_info = search_financial_info(stock_symbol, market)
                 st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': financial_info}
                 st.session_state.total_results = 1 if financial_info else 0
                 
                 if financial_info:
                     with st.spinner("재무정보를 분석 중입니다..."):
-                        st.session_state.summary = analyze_financial_info(financial_info, stock_symbol)
+                        st.session_state.summary = analyze_financial_info(financial_info, stock_symbol, market)
                 else:
                     st.warning(f"{stock_input}의 재무정보를 찾을 수 없습니다. 올바른 종목명 또는 종목 코드인지 확인해주세요.")
             else:
