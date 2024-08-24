@@ -394,9 +394,9 @@ st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
 col1, col2 = st.columns([0.85, 0.15])  # 열을 비율로 분할
 with col1:
     if source == "YouTube":
-        st.subheader("🎦 영상 요약 보고서")
+        st.subheader("📋 영상 요약 보고서")
     elif source == "뉴스":
-        st.subheader("📰 뉴스 종합 분석 보고서")
+        st.subheader("📋 뉴스 종합 분석 보고서")
     else:
         st.subheader("📈 재무정보 분석 보고서")
 with col2:
