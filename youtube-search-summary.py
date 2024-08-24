@@ -221,7 +221,7 @@ def analyze_news_articles(articles):
         return f"분석 중 오류가 발생했습니다: {str(e)}"
 
 # 재무정보 분석
-def analyze_financial_info(financial_data, stock_symbol):
+def analyze_financial_info(financial_data, stock_symbol, stock_name):
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
         
@@ -236,7 +236,7 @@ def analyze_financial_info(financial_data, stock_symbol):
                 financial_info += str(value) + "\n\n"
         
         prompt = f"""
-다음은 {stock_symbol} 주식의 재무정보입니다. 이 정보를 바탕으로 종합적인 재무 분석 보고서를 작성해주세요. 보고서는 다음 형식을 참고하여 작성해주세요:
+다음은 {stock_name} ({stock_symbol}) 주식의 재무정보입니다. 이 정보를 바탕으로 종합적인 재무 분석 보고서를 작성해주세요. 보고서는 다음 형식을 참고하여 작성해주세요:
 
 1. 기업 개요
    - 제공된 기업 정보를 바탕으로 구체적이고 사실에 기반한 개요를 작성하세요.
@@ -336,21 +336,28 @@ if search_button:
             if not st.session_state.total_results:
                 st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 도메인이나 검색어로 검색해보세요.")
     
-    elif source == "재무정보":
-        with st.spinner(f"{stock_input}의 재무정보를 검색하고 있습니다..."):
-            stock_symbol = search_stock_symbol(stock_input) if not stock_input.isalpha() else stock_input
-            if stock_symbol:
-                financial_info = search_financial_info(stock_symbol)
-                st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': financial_info}
-                st.session_state.total_results = 1 if financial_info else 0
-                
-                if financial_info:
-                    with st.spinner("재무정보를 분석 중입니다..."):
-                        st.session_state.summary = analyze_financial_info(financial_info, stock_symbol)
-                else:
-                    st.warning(f"{stock_input}의 재무정보를 찾을 수 없습니다. 올바른 종목명 또는 종목 코드인지 확인해주세요.")
+   elif source == "재무정보":
+    with st.spinner(f"{stock_input}의 재무정보를 검색하고 있습니다..."):
+        stock_symbol = search_stock_symbol(stock_input) if not stock_input.isalpha() else stock_input
+        if stock_symbol:
+            financial_info = search_financial_info(stock_symbol)
+            st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': financial_info}
+            st.session_state.total_results = 1 if financial_info else 0
+            
+            if financial_info:
+                with st.spinner("재무정보를 분석 중입니다..."):
+                    # 종목명 결정
+                    if stock_input_method == "목록에서 선택":
+                        stock_name = stock_selection.split('(')[0].strip()  # 괄호 앞의 종목명 추출
+                    else:
+                        stock = yf.Ticker(stock_symbol)
+                        stock_name = stock.info.get('longName', stock_symbol)  # yfinance에서 종목명 가져오기
+                    
+                    st.session_state.summary = analyze_financial_info(financial_info, stock_symbol, stock_name)
             else:
-                st.warning(f"{stock_input}에 해당하는 종목을 찾을 수 없습니다.")
+                st.warning(f"{stock_input}의 재무정보를 찾을 수 없습니다. 올바른 종목명 또는 종목 코드인지 확인해주세요.")
+        else:
+            st.warning(f"{stock_input}에 해당하는 종목을 찾을 수 없습니다.")
 
 # 검색 결과 표시
 if source == "YouTube":
