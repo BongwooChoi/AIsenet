@@ -95,8 +95,6 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
             maxResults=max_results
         )
         response = request.execute()
-        
-        # st.write(f"🎦 검색된 총 비디오 수: {len(response['items'])}")  # 디버깅용 로그
 
         videos_with_transcript = []
         for item in response['items']:
@@ -287,7 +285,7 @@ st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영�
 # 사이드바에 검색 조건 배치
 with st.sidebar:
     st.header("검색 조건")
-    source = st.radio("검색할 소스를 선택하세요:", ("YouTube", "뉴스", "재무정보"))
+    source = st.radio("검색할 채널을 선택하세요:", ("YouTube", "뉴스", "재무정보"))
     if source in ["YouTube", "뉴스"]:
         domain = st.selectbox("금융 도메인 선택", list(FINANCE_DOMAINS.keys()))
         additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
@@ -362,7 +360,7 @@ if search_button:
 
 # 검색 결과 표시
 if source == "YouTube":
-    st.subheader(f"🎦 검색된 총 YouTube 영상: {st.session_state.total_results}개")
+    st.subheader(f"🎦 검색된 YouTube 영상: {st.session_state.total_results}개")
     for video in st.session_state.search_results['videos']:
         col1, col2 = st.columns([1, 2])
         with col1:
@@ -383,7 +381,7 @@ if source == "YouTube":
         st.divider()
 
 elif source == "뉴스":
-    st.subheader(f"📰 검색된 총 뉴스 기사: {st.session_state.total_results}개")
+    st.subheader(f"📰 검색된 뉴스 기사: {st.session_state.total_results}개")
     for i, article in enumerate(st.session_state.search_results['news']):
         st.subheader(article['title'])
         st.markdown(f"**출처:** {article['source']['name']}")
