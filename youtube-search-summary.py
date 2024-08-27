@@ -99,6 +99,8 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         )
         response = request.execute()
 
+        st.write(f"API 응답: {response}")  # 디버깅용 로그
+ 
         videos_with_transcript = []
         for item in response['items']:
             video_id = item['id']['videoId']
