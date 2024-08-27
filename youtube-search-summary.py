@@ -366,26 +366,29 @@ if search_button:
                 st.warning(f"{stock_input}에 해당하는 종목을 찾을 수 없습니다.")
 
 # 검색 결과 표시
-if source == "YouTube":
-    st.subheader(f"🎦 검색된 YouTube 영상")
-    for video in st.session_state.search_results['videos']:
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.image(video['snippet']['thumbnails']['medium']['url'], use_column_width=True)
-        with col2:
-            st.subheader(video['snippet']['title'])
-            st.markdown(f"**채널명:** {video['snippet']['channelTitle']}")
-            st.write(video['snippet']['description'])
-            video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
-            st.markdown(f"[영상 보기]({video_url})")
-            
-            video_id = video['id']['videoId']
-            video_title = video['snippet']['title']
-            if st.button(f"📋 요약 보고서 요청", key=f"summarize_{video_id}"):
-                with st.spinner("영상을 요약하는 중..."):
-                    summary = summarize_video(video_id, video_title)
-                    st.session_state.summary = summary
-        st.divider()
+if search_button and source == "YouTube":
+    st.subheader("🎦 검색된 YouTube 영상")
+    if st.session_state.search_results['videos']:
+        for video in st.session_state.search_results['videos']:
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                st.image(video['snippet']['thumbnails']['medium']['url'], use_column_width=True)
+            with col2:
+                st.subheader(video['snippet']['title'])
+                st.markdown(f"**채널명:** {video['snippet']['channelTitle']}")
+                st.write(video['snippet']['description'])
+                video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
+                st.markdown(f"[영상 보기]({video_url})")
+                
+                video_id = video['id']['videoId']
+                video_title = video['snippet']['title']
+                if st.button(f"📋 요약 보고서 요청", key=f"summarize_{video_id}"):
+                    with st.spinner("영상을 요약하는 중..."):
+                        summary = summarize_video(video_id, video_title)
+                        st.session_state.summary = summary
+            st.divider()
+    else:
+        st.warning("YouTube에서 결과를 찾을 수 없습니다.")
 
 elif source == "뉴스":
     st.subheader(f"📰 검색된 뉴스 기사")
