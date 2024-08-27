@@ -82,14 +82,13 @@ def search_news(domain, additional_query, published_after, max_results=10):
     return unique_articles
 
 # YouTube 검색 함수
-def search_videos_with_transcript(domain, additional_query, published_after, max_results=50):
+def search_videos_with_transcript(domain, additional_query, published_after, max_results=10):
     try:
         keywords = " OR ".join(FINANCE_DOMAINS[domain])
         query = f"({keywords}) {additional_query}".strip()
-
+        
         # st.write(f"검색 쿼리: {query}")  # 디버깅용 로그
-        # st.write(f"조회 기간: {published_after}")  # 디버깅용 로그
-
+        
         request = youtube.search().list(
             q=query,
             type='video',
@@ -100,17 +99,15 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         )
         response = request.execute()
 
-        # st.write(f"API 응답: {response}")  # 디버깅용 로그
-
         videos_with_transcript = []
-        for item in response.get('items', []):
+        for item in response['items']:
             video_id = item['id']['videoId']
             if get_video_transcript(video_id):
                 videos_with_transcript.append(item)
-
-        st.write(f"자막이 있는 비디오 수: {len(videos_with_transcript)}")  # 디버깅용 로그
-
-        return videos_with_transcript[:max_results], len(response.get('items', []))
+        
+        # st.write(f"자막이 있는 비디오 수: {len(videos_with_transcript)}")  # 디버깅용 로그
+        
+        return videos_with_transcript[:max_results], len(response['items'])
     except Exception as e:
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
