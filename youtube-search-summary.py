@@ -146,19 +146,22 @@ def search_financial_info(stock_symbol):
 def get_published_after(option):
     today = datetime.now(UTC)
     if option == "최근 1일":
-        return (today - timedelta(days=1)).isoformat()
+        date = today - timedelta(days=1)
     elif option == "최근 1주일":
-        return (today - timedelta(weeks=1)).isoformat()
+        date = today - timedelta(weeks=1)
     elif option == "최근 1개월":
-        return (today - timedelta(weeks=4)).isoformat()
+        date = today - timedelta(weeks=4)
     elif option == "최근 3개월":
-        return (today - timedelta(weeks=12)).isoformat()
+        date = today - timedelta(weeks=12)
     elif option == "최근 6개월":
-        return (today - timedelta(weeks=24)).isoformat()
+        date = today - timedelta(weeks=24)
     elif option == "최근 1년":
-        return (today - timedelta(weeks=52)).isoformat()
+        date = today - timedelta(weeks=52)
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
+    
+    # YouTube API가 요구하는 형식으로 변환
+    return date.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id):
