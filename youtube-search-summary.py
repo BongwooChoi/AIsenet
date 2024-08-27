@@ -82,7 +82,7 @@ def search_news(domain, additional_query, published_after, max_results=10):
     return unique_articles
 
 # YouTube 검색 함수
-def search_videos_with_transcript(domain, additional_query, published_after, max_results=10):
+def search_videos_with_transcript(domain, additional_query, published_after, max_results=20):
     try:
         keywords = " OR ".join(FINANCE_DOMAINS[domain])
         query = f"({keywords}) {additional_query}".strip()
@@ -100,7 +100,7 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         )
         response = request.execute()
 
-        st.write(f"API 응답: {response}")  # 디버깅용 로그
+        # st.write(f"API 응답: {response}")  # 디버깅용 로그
 
         videos_with_transcript = []
         for item in response.get('items', []):
