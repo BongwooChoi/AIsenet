@@ -107,7 +107,7 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
             if get_video_transcript(video_id):
                 videos_with_transcript.append(item)
         
-        # st.write(f"자막이 있는 비디오 수: {len(videos_with_transcript)}")  # 디버깅용 로그
+        st.write(f"자막이 있는 비디오 수: {len(videos_with_transcript)}")  # 디버깅용 로그
         
         return videos_with_transcript[:max_results], len(response['items'])
     except Exception as e:
