@@ -169,18 +169,31 @@ def get_video_transcript(video_id):
         transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
         return ' '.join([entry['text'] for entry in transcript])
     except Exception as e:
+        st.warning(f"자막을 가져오는 데 실패했습니다: {str(e)}")
         return None
 
 
 # YouTube 영상 요약 함수
-def summarize_video(video_id, video_title):
+def summarize_video(video_id, video_title, video_description):
     try:
         transcript = get_video_transcript(video_id)
-        if not transcript:
-            return "자막을 가져올 수 없어 요약할 수 없습니다."
-
         model = genai.GenerativeModel('gemini-1.5-pro')
-        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\n{transcript}"
+        
+        if transcript:
+            prompt = f"""다음 YouTube 영상의 제목, 설명, 그리고 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:
+
+제목: {video_title}
+
+설명: {video_description}
+
+내용: {transcript}"""
+        else:
+            prompt = f"""다음 YouTube 영상의 제목과 설명을 바탕으로 예상되는 내용을 간단히 추측하여 요약해주세요. 최종 결과는 한국어로 나와야 합니다.:
+
+제목: {video_title}
+
+설명: {video_description}"""
+
         response = model.generate_content(prompt)
 
         if not response or not response.parts:
@@ -376,13 +389,15 @@ if source == "YouTube":
             st.write(video['snippet']['description'])
             video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
             st.markdown(f"[영상 보기]({video_url})")
-            
+
             video_id = video['id']['videoId']
             video_title = video['snippet']['title']
+            video_description = video['snippet']['description']
             if st.button(f"📋 요약 보고서 요청", key=f"summarize_{video_id}"):
                 with st.spinner("영상을 요약하는 중..."):
-                    summary = summarize_video(video_id, video_title)
+                    summary = summarize_video(video_id, video_title, video_description)
                     st.session_state.summary = summary
+                    st.markdown(summary)  # 요약 결과를 즉시 표시
         st.divider()
 
 elif source == "뉴스":
