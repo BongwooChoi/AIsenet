@@ -166,7 +166,7 @@ def get_published_after(option):
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id):
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
         return ' '.join([entry['text'] for entry in transcript])
     except Exception as e:
         return None
