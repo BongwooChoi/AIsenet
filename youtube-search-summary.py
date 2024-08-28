@@ -93,7 +93,7 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
             part='id,snippet',
             order='relevance',
             publishedAfter=published_after,
-            maxResults=max_results * 2  # 더 많은 결과를 가져와 자막이 있는 비디오를 찾을 확률을 높입니다
+            maxResults=max_results * 2
         )
         response = request.execute()
 
@@ -172,9 +172,8 @@ def get_published_after(option):
     return date.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 # YouTube 영상 요약 함수
-def summarize_video(video_id, video_title):
+def summarize_video(video_id, video_title, transcript):
     try:
-        transcript = get_video_transcript(video_id)
         if not transcript:
             return "자막을 가져올 수 없어 요약할 수 없습니다."
 
@@ -190,6 +189,7 @@ def summarize_video(video_id, video_title):
         return summary
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
+
 
 # 뉴스 기사 종합 분석 함수
 def analyze_news_articles(articles):
@@ -319,11 +319,12 @@ if search_button:
             published_after = get_published_after(period)
             
             if source == "YouTube":
-                # YouTube 영상 검색
-                videos, total_video_results = search_videos_with_transcript(domain, additional_query, published_after)
-                st.session_state.search_results = {'videos': videos, 'news': [], 'financial_info': {}}
-                st.session_state.total_results = total_video_results
-                st.session_state.summary = ""  # YouTube 검색 시 요약 초기화
+                with st.spinner(f"{source}를 검색하고 있습니다..."):
+                    published_after = get_published_after(period)
+                    videos, total_video_results = search_videos_with_transcript(domain, additional_query, published_after)
+                    st.session_state.search_results = {'videos': videos, 'news': [], 'financial_info': {}}
+                    st.session_state.total_results = total_video_results
+                    st.session_state.summary = ""  # YouTube 검색 시 요약 초기화
             
             elif source == "뉴스":
                 # 뉴스 검색 및 자동 분석
@@ -380,7 +381,7 @@ if source == "YouTube":
             video_title = video['snippet']['title']
             if st.button(f"📋 요약 보고서 요청", key=f"summarize_{video_id}"):
                 with st.spinner("영상을 요약하는 중..."):
-                    summary = summarize_video(video_id, video_title)
+                    summary = summarize_video(video_id, video_title, video['transcript'])
                     st.session_state.summary = summary
         st.divider()
 
