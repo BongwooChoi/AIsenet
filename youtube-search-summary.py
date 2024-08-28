@@ -87,30 +87,38 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         keywords = " OR ".join(FINANCE_DOMAINS[domain])
         query = f"({keywords}) {additional_query}".strip()
         
-        # st.write(f"검색 쿼리: {query}")  # 디버깅용 로그
-        
         request = youtube.search().list(
             q=query,
             type='video',
             part='id,snippet',
             order='relevance',
             publishedAfter=published_after,
-            maxResults=max_results
+            maxResults=max_results * 2  # 더 많은 결과를 가져와 자막이 있는 비디오를 찾을 확률을 높입니다
         )
         response = request.execute()
 
         videos_with_transcript = []
         for item in response['items']:
             video_id = item['id']['videoId']
-            if get_video_transcript(video_id):
+            transcript = get_video_transcript(video_id)
+            if transcript:
+                item['transcript'] = transcript
                 videos_with_transcript.append(item)
-        
-        # st.write(f"자막이 있는 비디오 수: {len(videos_with_transcript)}")  # 디버깅용 로그
-        
-        return videos_with_transcript[:max_results], len(response['items'])
+                if len(videos_with_transcript) == max_results:
+                    break
+
+        return videos_with_transcript, len(response['items'])
     except Exception as e:
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
+
+# 자막 가져오기 함수 (YouTube Transcript API 사용)
+def get_video_transcript(video_id):
+    try:
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
+        return ' '.join([entry['text'] for entry in transcript])
+    except Exception as e:
+        return None
 
 # 종목명으로 종목 코드 검색 함수
 def search_stock_symbol(stock_name):
@@ -162,15 +170,6 @@ def get_published_after(option):
     
     # YouTube API가 요구하는 형식으로 변환
     return date.strftime('%Y-%m-%dT%H:%M:%SZ')
-
-# 자막 가져오기 함수 (YouTube Transcript API 사용)
-def get_video_transcript(video_id):
-    try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
-        return ' '.join([entry['text'] for entry in transcript])
-    except Exception as e:
-        return None
-
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
