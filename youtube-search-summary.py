@@ -172,8 +172,38 @@ def get_published_after(option):
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id):
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
-        return ' '.join([entry['text'] for entry in transcript])
+        # 자막 트랙 목록 가져오기
+        captions_response = youtube.captions().list(
+            part="snippet",
+            videoId=video_id
+        ).execute()
+
+        if 'items' not in captions_response or not captions_response['items']:
+            st.write(f"자막이 없거나 접근할 수 없음 (비디오 ID: {video_id})")
+            return None
+
+        # 한국어 또는 영어 자막 찾기
+        caption_id = None
+        for item in captions_response['items']:
+            if item['snippet']['language'] in ['ko', 'en']:
+                caption_id = item['id']
+                break
+
+        if not caption_id:
+            st.write(f"한국어 또는 영어 자막을 찾을 수 없음 (비디오 ID: {video_id})")
+            return None
+
+        # 자막 다운로드
+        subtitle = youtube.captions().download(
+            id=caption_id,
+            tfmt='srt'
+        ).execute()
+
+        # SRT 형식의 자막을 텍스트로 변환
+        lines = subtitle.decode('utf-8').split('\n\n')
+        transcript = ' '.join([' '.join(line.split('\n')[2:]) for line in lines if line.strip()])
+
+        return transcript
     except Exception as e:
         st.write(f"자막 가져오기 실패 (비디오 ID: {video_id}): {str(e)}")  # 디버깅용 로그
         return None
