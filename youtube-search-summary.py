@@ -2,6 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
+import yt_dlp
 import os
 from datetime import datetime, timedelta, timezone, UTC
 import requests
@@ -115,10 +116,43 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id):
     try:
+        # 먼저 YouTube Transcript API를 사용하여 자막 가져오기 시도
         transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
         return ' '.join([entry['text'] for entry in transcript])
     except Exception as e:
-        return None
+        print(f"YouTube Transcript API failed: {str(e)}. Trying yt-dlp...")
+        
+        # YouTube Transcript API 실패 시 yt-dlp 사용
+        try:
+            ydl_opts = {
+                'writesubtitles': True,
+                'writeautomaticsub': True,
+                'subtitleslangs': ['ko', 'en'],
+                'skip_download': True,
+                'outtmpl': 'subtitle',
+            }
+            
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+                
+                if 'subtitles' in info and (info['subtitles'].get('ko') or info['subtitles'].get('en')):
+                    subtitle_url = info['subtitles'].get('ko', info['subtitles'].get('en'))[0]['url']
+                elif 'automatic_captions' in info and (info['automatic_captions'].get('ko') or info['automatic_captions'].get('en')):
+                    subtitle_url = info['automatic_captions'].get('ko', info['automatic_captions'].get('en'))[0]['url']
+                else:
+                    return None
+                
+                # 자막 다운로드 및 처리
+                subtitle_text = ydl.urlopen(subtitle_url).read().decode('utf-8')
+                
+                # WebVTT 형식의 자막을 단순 텍스트로 변환
+                lines = subtitle_text.split('\n')
+                transcript_text = ' '.join([line for line in lines if not line.strip().replace('->', '').replace(':', '').isdigit() and line.strip()])
+                
+                return transcript_text
+        except Exception as e:
+            print(f"yt-dlp also failed: {str(e)}")
+            return None
 
 # 종목명으로 종목 코드 검색 함수
 def search_stock_symbol(stock_name):
