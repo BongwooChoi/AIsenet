@@ -86,9 +86,9 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
     try:
         keywords = " OR ".join(FINANCE_DOMAINS[domain])
         query = f"({keywords}) {additional_query}".strip()
-        
-        # st.write(f"검색 쿼리: {query}")  # 디버깅용 로그
-        
+
+        st.write(f"검색 쿼리: {query}")  # 디버깅용 로그
+
         request = youtube.search().list(
             q=query,
             type='video',
@@ -100,15 +100,19 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         response = request.execute()
 
         st.write(f"API 응답: {response}")  # 디버깅용 로그
- 
+
         videos_with_transcript = []
         for item in response['items']:
             video_id = item['id']['videoId']
-            if get_video_transcript(video_id):
+            transcript = get_video_transcript(video_id)
+            if transcript:
+                item['transcript'] = transcript
                 videos_with_transcript.append(item)
-        
-        # st.write(f"자막이 있는 비디오 수: {len(videos_with_transcript)}")  # 디버깅용 로그
-        
+            
+            st.write(f"비디오 ID: {video_id}, 자막 있음: {bool(transcript)}")  # 디버깅용 로그
+
+        st.write(f"자막이 있는 비디오 수: {len(videos_with_transcript)}")  # 디버깅용 로그
+
         return videos_with_transcript[:max_results], len(response['items'])
     except Exception as e:
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
@@ -171,13 +175,13 @@ def get_video_transcript(video_id):
         transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
         return ' '.join([entry['text'] for entry in transcript])
     except Exception as e:
+        st.write(f"자막 가져오기 실패 (비디오 ID: {video_id}): {str(e)}")  # 디버깅용 로그
         return None
 
 
 # YouTube 영상 요약 함수
-def summarize_video(video_id, video_title):
+def summarize_video(video_id, video_title, transcript):
     try:
-        transcript = get_video_transcript(video_id)
         if not transcript:
             return "자막을 가져올 수 없어 요약할 수 없습니다."
 
@@ -193,6 +197,7 @@ def summarize_video(video_id, video_title):
         return summary
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
+
 
 # 뉴스 기사 종합 분석 함수
 def analyze_news_articles(articles):
@@ -378,12 +383,13 @@ if source == "YouTube":
             st.write(video['snippet']['description'])
             video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
             st.markdown(f"[영상 보기]({video_url})")
-            
+
             video_id = video['id']['videoId']
             video_title = video['snippet']['title']
             if st.button(f"📋 요약 보고서 요청", key=f"summarize_{video_id}"):
                 with st.spinner("영상을 요약하는 중..."):
-                    summary = summarize_video(video_id, video_title)
+                    transcript = video.get('transcript', '')
+                    summary = summarize_video(video_id, video_title, transcript)
                     st.session_state.summary = summary
         st.divider()
 
