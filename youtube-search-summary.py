@@ -2,6 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
+from googleapiclient.errors import HttpError
 import os
 from datetime import datetime, timedelta, timezone, UTC
 import time
