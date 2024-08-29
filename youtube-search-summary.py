@@ -4,6 +4,7 @@ from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
 import os
 from datetime import datetime, timedelta, timezone, UTC
+import time
 import requests
 import urllib.parse
 import pandas as pd
@@ -82,7 +83,7 @@ def search_news(domain, additional_query, published_after, max_results=20):
     return unique_articles
 
 # YouTube 검색 함수
-def search_videos_with_transcript(domain, additional_query, published_after, max_results=20):
+def search_videos(domain, additional_query, published_after, max_results=20):
     try:
         keywords = " OR ".join(FINANCE_DOMAINS[domain])
         query = f"({keywords}) {additional_query}".strip()
@@ -93,32 +94,27 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
             part='id,snippet',
             order='relevance',
             publishedAfter=published_after,
-            maxResults=max_results * 2
+            maxResults=max_results
         )
         response = request.execute()
 
-        videos_with_transcript = []
-        for item in response['items']:
-            video_id = item['id']['videoId']
-            transcript = get_video_transcript(video_id)
-            if transcript:
-                item['transcript'] = transcript
-                videos_with_transcript.append(item)
-                if len(videos_with_transcript) == max_results:
-                    break
-
-        return videos_with_transcript, len(response['items'])
+        return response['items'], len(response['items'])
     except Exception as e:
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
-def get_video_transcript(video_id):
-    try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
-        return ' '.join([entry['text'] for entry in transcript])
-    except Exception as e:
-        return None
+def get_video_transcript(video_id, max_retries=3, delay=1):
+    for attempt in range(max_retries):
+        try:
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
+            return ' '.join([entry['text'] for entry in transcript])
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(delay)
+            else:
+                st.warning(f"자막을 가져오는데 실패했습니다: {str(e)}")
+                return None
 
 # 종목명으로 종목 코드 검색 함수
 def search_stock_symbol(stock_name):
@@ -172,11 +168,13 @@ def get_published_after(option):
     return date.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 # YouTube 영상 요약 함수
-def summarize_video(video_id, video_title, transcript):
-    try:
-        if not transcript:
-            return "자막을 가져올 수 없어 요약할 수 없습니다."
+def summarize_video(video_id, video_title):
+    transcript = get_video_transcript(video_id)
+    
+    if not transcript:
+        return "자막을 가져올 수 없어 요약할 수 없습니다."
 
+    try:
         model = genai.GenerativeModel('gemini-1.5-pro')
         prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\n{transcript}"
         response = model.generate_content(prompt)
@@ -319,16 +317,14 @@ if search_button:
             published_after = get_published_after(period)
             
             if source == "YouTube":
-                with st.spinner(f"{source}를 검색하고 있습니다..."):
-                    published_after = get_published_after(period)
-                    videos, total_video_results = search_videos_with_transcript(domain, additional_query, published_after)
-                    st.session_state.search_results = {'videos': videos, 'news': [], 'financial_info': {}}
-                    st.session_state.total_results = total_video_results
-                    st.session_state.summary = ""  # YouTube 검색 시 요약 초기화
+                videos, total_video_results = search_videos(domain, additional_query, published_after)
+                st.session_state.search_results = {'videos': videos, 'news': [], 'financial_info': {}}
+                st.session_state.total_results = total_video_results
+                st.session_state.summary = ""  # YouTube 검색 시 요약 초기화
             
             elif source == "뉴스":
                 # 뉴스 검색 및 자동 분석
-                news_articles = search_news(domain, additional_query, published_after, max_results=10)
+                news_articles = search_news(domain, additional_query, published_after, max_results=20)
                 total_news_results = len(news_articles)
                 st.session_state.search_results = {'videos': [], 'news': news_articles, 'financial_info': {}}
                 st.session_state.total_results = total_news_results
@@ -381,7 +377,7 @@ if source == "YouTube":
             video_title = video['snippet']['title']
             if st.button(f"📋 요약 보고서 요청", key=f"summarize_{video_id}"):
                 with st.spinner("영상을 요약하는 중..."):
-                    summary = summarize_video(video_id, video_title, video['transcript'])
+                    summary = summarize_video(video_id, video_title)
                     st.session_state.summary = summary
         st.divider()
 
