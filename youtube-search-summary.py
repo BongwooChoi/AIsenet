@@ -41,8 +41,7 @@ MAJOR_STOCKS = [
     "Visa Inc. (V)",
     "Realty Income Corporation (O)",
     "Starbucks Corporation (SBUX)",
-    "McDonald's Corporation (MCD)",
-    "Samsung Electronics Co., Ltd. (005930.KS)"
+    "McDonald's Corporation (MCD)"
 ]
 
 # 뉴스 검색 함수 (Serp API 사용)
