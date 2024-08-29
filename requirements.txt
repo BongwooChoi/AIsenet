@@ -1,10 +1,8 @@
 streamlit
-yt-dlp
 google-generativeai
 google-api-python-client
-googleapiclient.errors
 youtube_transcript_api
 requests
 plotly
 yfinance
-html
+pandas
