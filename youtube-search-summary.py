@@ -104,23 +104,17 @@ def search_videos(domain, additional_query, published_after, max_results=20):
         return [], 0
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
-def get_video_transcript(video_id):
-    languages = ['ko', 'en', 'ja', 'zh-cn', 'zh-tw']  # 시도할 언어 목록
-    for lang in languages:
+def get_video_transcript(video_id, max_retries=3, delay=1):
+    for attempt in range(max_retries):
         try:
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=[lang])
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
             return ' '.join([entry['text'] for entry in transcript])
         except Exception as e:
-            if 'TranscriptsDisabled' in str(e):
-                return None  # 자막이 비활성화된 경우
-            elif 'NoTranscriptFound' in str(e):
-                continue  # 다음 언어로 시도
+            if attempt < max_retries - 1:
+                time.sleep(delay)
             else:
-                st.warning(f"자막을 가져오는 중 오류 발생: {str(e)}")
-                
-    # 모든 언어 시도 후에도 실패한 경우
-    st.warning(f"영상 ID {video_id}에 대한 자막을 찾을 수 없습니다. 자막이 비활성화되었거나 지원되지 않는 언어일 수 있습니다.")
-    return None
+                st.warning(f"자막을 가져오는데 실패했습니다: {str(e)}")
+                return None
 
 # 종목명으로 종목 코드 검색 함수
 def search_stock_symbol(stock_name):
@@ -382,13 +376,9 @@ if source == "YouTube":
             video_id = video['id']['videoId']
             video_title = video['snippet']['title']
             if st.button(f"📋 요약 보고서 요청", key=f"summarize_{video_id}"):
-                with st.spinner("영상 자막을 가져오고 요약하는 중..."):
-                    transcript = get_video_transcript(video_id)
-                    if transcript:
-                        summary = summarize_video(video_id, video_title, transcript)
-                        st.session_state.summary = summary
-                    else:
-                        st.warning("이 영상의 자막을 가져올 수 없습니다. 자막이 비활성화되었거나 지원되지 않는 언어일 수 있습니다.")
+                with st.spinner("영상을 요약하는 중..."):
+                    summary = summarize_video(video_id, video_title)
+                    st.session_state.summary = summary
         st.divider()
 
 elif source == "뉴스":
