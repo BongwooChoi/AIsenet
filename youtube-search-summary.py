@@ -2,7 +2,6 @@ import streamlit as st
 import google.generativeai as genai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
-from googleapiclient.errors import HttpError
 import os
 from datetime import datetime, timedelta, timezone, UTC
 import time
@@ -11,7 +10,6 @@ import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
-import html
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="🤖", layout="wide")
@@ -109,58 +107,13 @@ def search_videos(domain, additional_query, published_after, max_results=20):
 def get_video_transcript(video_id, max_retries=3, delay=1):
     for attempt in range(max_retries):
         try:
-            # 자막 트랙 목록 가져오기
-            captions_response = youtube.captions().list(
-                part="snippet",
-                videoId=video_id
-            ).execute()
-
-            if 'items' in captions_response:
-                # 한국어 또는 영어 자막 찾기
-                caption_id = None
-                for item in captions_response['items']:
-                    lang = item['snippet']['language']
-                    if lang in ['ko', 'en']:
-                        caption_id = item['id']
-                        break
-
-                if caption_id:
-                    # 자막 다운로드
-                    subtitle = youtube.captions().download(
-                        id=caption_id,
-                        tfmt='srt'
-                    ).execute()
-
-                    # SRT 형식 파싱 및 텍스트 추출
-                    lines = subtitle.decode('utf-8').split('\n\n')
-                    text_lines = [' '.join(chunk.split('\n')[2:]) for chunk in lines]
-                    full_text = ' '.join(text_lines)
-                    
-                    # HTML 엔티티 디코딩
-                    full_text = html.unescape(full_text)
-                    
-                    return full_text
-                else:
-                    st.warning(f"한국어 또는 영어 자막을 찾을 수 없습니다.")
-                    return None
-            else:
-                st.warning(f"이 영상에 대한 자막 정보를 찾을 수 없습니다.")
-                return None
-
-        except HttpError as e:
-            if e.resp.status in [403, 404]:  # 자막이 비활성화되었거나 존재하지 않는 경우
-                st.warning(f"이 영상의 자막을 가져올 수 없습니다: {str(e)}")
-                return None
-            elif attempt < max_retries - 1:
-                time.sleep(delay)
-            else:
-                st.error(f"자막을 가져오는데 실패했습니다: {str(e)}")
-                return None
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
+            return ' '.join([entry['text'] for entry in transcript])
         except Exception as e:
             if attempt < max_retries - 1:
                 time.sleep(delay)
             else:
-                st.error(f"자막을 가져오는데 실패했습니다: {str(e)}")
+                st.warning(f"자막을 가져오는데 실패했습니다: {str(e)}")
                 return None
 
 # 종목명으로 종목 코드 검색 함수
