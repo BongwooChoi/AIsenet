@@ -93,7 +93,6 @@ def search_videos(domain, additional_query, published_after, max_results=20):
             type='video',
             part='id,snippet',
             order='relevance',
-            relevanceLanguage='ko,en',
             publishedAfter=published_after,
             maxResults=max_results
         )
@@ -108,7 +107,7 @@ def search_videos(domain, additional_query, published_after, max_results=20):
 def get_video_transcript(video_id, max_retries=3, delay=1):
     for attempt in range(max_retries):
         try:
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'])
             return ' '.join([entry['text'] for entry in transcript])
         except Exception as e:
             if attempt < max_retries - 1:
