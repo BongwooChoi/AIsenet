@@ -289,8 +289,12 @@ with st.sidebar:
     st.header("검색 조건")
     source = st.radio("검색할 채널을 선택하세요:", ("YouTube", "뉴스", "재무정보"))
     if source in ["YouTube", "뉴스"]:
-        domain = st.selectbox("금융 도메인 선택", list(FINANCE_DOMAINS.keys()))
-        additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
+        domain_options = list(FINANCE_DOMAINS.keys()) + ["직접입력"]
+        domain = st.selectbox("금융 도메인 선택", domain_options)
+        if domain == "직접입력":
+            additional_query = st.text_input("검색어 입력", key="direct_query")
+        else:
+            additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
         period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
     else:
         stock_input_method = st.radio("종목 선택 방법", ("목록에서 선택", "직접 입력"))
@@ -316,15 +320,18 @@ if search_button:
         with st.spinner(f"{source}를 검색하고 있습니다..."):
             published_after = get_published_after(period)
             
+            # 직접입력 시 검색 로직 수정
+            search_query = additional_query if domain == "직접입력" else f"({' OR '.join(FINANCE_DOMAINS[domain])}) {additional_query}".strip()
+            
             if source == "YouTube":
-                videos, total_video_results = search_videos(domain, additional_query, published_after)
+                videos, total_video_results = search_videos(search_query, published_after)
                 st.session_state.search_results = {'videos': videos, 'news': [], 'financial_info': {}}
                 st.session_state.total_results = total_video_results
                 st.session_state.summary = ""  # YouTube 검색 시 요약 초기화
             
             elif source == "뉴스":
                 # 뉴스 검색 및 자동 분석
-                news_articles = search_news(domain, additional_query, published_after, max_results=20)
+                news_articles = search_news(search_query, published_after, max_results=20)
                 total_news_results = len(news_articles)
                 st.session_state.search_results = {'videos': [], 'news': news_articles, 'financial_info': {}}
                 st.session_state.total_results = total_news_results
