@@ -93,6 +93,7 @@ def search_videos(domain, additional_query, published_after, max_results=20):
             type='video',
             part='id,snippet',
             order='relevance',
+            relevanceLanguage='ko,en',
             publishedAfter=published_after,
             maxResults=max_results
         )
