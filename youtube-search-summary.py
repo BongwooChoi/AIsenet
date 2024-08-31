@@ -106,7 +106,7 @@ def search_videos(domain, additional_query, published_after, max_results=20):
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id, max_retries=3, delay=1):
-    # 1. Try using YouTubeTranscriptApi
+    # 1. YouTubeTranscriptApi으로 자막 가져오기
     for attempt in range(max_retries):
         try:
             transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'])
@@ -118,7 +118,7 @@ def get_video_transcript(video_id, max_retries=3, delay=1):
                 st.warning(f"YouTubeTranscriptApi로 자막을 가져오는데 실패했습니다: {str(e)}")
                 break  # Move on to try yt_dlp
 
-    # 2. If YouTubeTranscriptApi fails, try using yt_dlp
+    # 2. YouTubeTranscriptApi 실패 시 yt_dlp로 자막 가져오기
     try:
         ydl_opts = {
             'writesubtitles': True,
