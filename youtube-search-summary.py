@@ -103,7 +103,7 @@ def search_videos(domain, additional_query, published_after, max_results=20):
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
 
- 자막 가져오기 함수
+# 자막 가져오기 함수
 def get_video_transcript(video_id, max_retries=3, delay=1):
     session = requests.Session()
     session.headers.update({
