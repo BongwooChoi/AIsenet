@@ -106,19 +106,10 @@ def search_videos(domain, additional_query, published_after, max_results=10):
             for item in response['items']:
                 video_id = item['id']['videoId']
                 
-                # 한국어 자막 확인
-                caption_request = youtube.captions().list(
-                    part="snippet",
-                    videoId=video_id
-                )
-                caption_response = caption_request.execute()
-                
-                has_korean_caption = any(
-                    caption['snippet']['language'] == 'ko'
-                    for caption in caption_response.get('items', [])
-                )
-                
-                if has_korean_caption:
+                # 한국어 자막 확인 및 저장
+                caption = get_video_caption(video_id)
+                if caption:
+                    item['caption'] = caption  # 자막을 영상 데이터에 저장
                     videos_with_korean_captions.append(item)
                     if len(videos_with_korean_captions) == max_results:
                         break
@@ -156,9 +147,6 @@ def get_video_caption(video_id):
         # 자막 다운로드 URL 생성
         caption_url = f"https://www.youtube.com/api/timedtext?lang=ko&v={video_id}&id={caption_id}"
 
-        # 자막 URL 출력
-        st.write(f"Generated caption URL: {caption_url}")
-
         # 자막 데이터 가져오기
         r = requests.get(caption_url)
         if r.status_code == 200:
@@ -167,36 +155,6 @@ def get_video_caption(video_id):
             return None
     except Exception as e:
         st.error(f"자막 가져오기 중 오류 발생: {str(e)}")
-        return None
-
-# 종목명으로 종목 코드 검색 함수
-def search_stock_symbol(stock_name):
-    url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(stock_name)}&quotesCount=1&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query"
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    response = requests.get(url, headers=headers)
-    data = response.json()
-    
-    if 'quotes' in data and len(data['quotes']) > 0:
-        return data['quotes'][0]['symbol']
-    return None
-
-# 재무정보 검색 함수 수정
-def search_financial_info(stock_symbol):
-    try:
-        stock = yf.Ticker(stock_symbol)
-        
-        # 기본 재무제표 정보 가져오기
-        income_statement = stock.financials
-        balance_sheet = stock.balance_sheet
-        cash_flow = stock.cashflow
-        
-        return {
-            'income_statement': income_statement.to_dict(),
-            'balance_sheet': balance_sheet.to_dict(),
-            'cash_flow_statement': cash_flow.to_dict()
-        }
-    except Exception as e:
-        st.error(f"재무정보 검색 중 오류 발생: {str(e)}")
         return None
 
 # 조회 기간 선택 함수
@@ -221,15 +179,13 @@ def get_published_after(option):
     return date.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 # YouTube 영상 요약 함수
-def summarize_video(video_id, video_title):
-    caption = get_video_caption(video_id)
-    
+def summarize_video(video_id, video_title, caption):
     if not caption:
         return "한국어 자막을 가져올 수 없어 요약할 수 없습니다."
 
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
-        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요:\n\n제목: {video_title}\n\n{transcript}"
+        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요:\n\n제목: {video_title}\n\n{caption}"
         response = model.generate_content(prompt)
 
         if not response or not response.parts:
@@ -240,128 +196,6 @@ def summarize_video(video_id, video_title):
         return summary
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
-
-
-# 뉴스 기사 종합 분석 함수
-def analyze_news_articles(articles):
-    try:
-        model = genai.GenerativeModel('gemini-1.5-pro')
-        
-        # 모든 기사의 제목과 내용을 하나의 문자열로 결합
-        all_articles = "\n\n".join([f"제목: {article['title']}\n내용: {article['content']}" for article in articles])
-        
-        prompt = f"""
-다음은 특정 주제에 관한 여러 뉴스 기사의 제목과 내용입니다. 이 기사들을 종합적으로 분석하여 가독성 있는 한 페이지의 보고서를 다음 형식을 참고하여 작성해주세요:
-
-1. 주요 이슈 요약 (3-5개의 핵심 포인트)
-2. 상세 분석 (각 주요 이슈에 대한 심층 설명)
-3. 다양한 관점 (기사들에서 나타난 서로 다른 의견이나 해석)
-4. 시사점 및 향후 전망
-
-보고서는 한국어로 작성해주세요. 분석 시 객관성을 유지하고, 편향된 의견을 제시하지 않도록 주의해주세요.
-
-기사 내용:
-{all_articles}
-"""
-        response = model.generate_content(prompt)
-
-        if not response or not response.parts:
-            feedback = response.prompt_feedback if response else "No response received."
-            return f"분석 중 오류가 발생했습니다: {feedback}"
-
-        analysis = response.text
-        return analysis
-    except Exception as e:
-        return f"분석 중 오류가 발생했습니다: {str(e)}"
-
-# 재무정보 분석
-def analyze_financial_info(financial_data, stock_symbol, stock_name):
-    try:
-        model = genai.GenerativeModel('gemini-1.5-pro')
-        
-        # 재무 데이터를 문자열로 변환
-        financial_info = ""
-        for key, value in financial_data.items():
-            financial_info += f"{key}:\n"
-            if isinstance(value, dict):
-                df = pd.DataFrame(value)
-                financial_info += df.to_string() + "\n\n"
-            else:
-                financial_info += str(value) + "\n\n"
-        
-        prompt = f"""
-다음은 {stock_name} ({stock_symbol}) 주식의 재무정보입니다. 이 정보를 바탕으로 종합적인 재무 분석 보고서를 작성해주세요. 보고서는 다음 형식을 참고하여 작성해주세요:
-
-1. 기업 개요
-2. 주요 재무지표 분석
-   - 수익성
-   - 성장성
-   - 안정성
-3. 주식 가치평가
-4. 리스크 요인
-5. 향후 전망 및 투자 의견
-
-주요 재무 데이터를 표 형태로 정리하여 보고서에 포함시켜주세요.
-(우측 끝에 '비고' 컬럼을 추가하여 특이사항이 있을 경우 명시해주세요.)
-수치를 말할 때 단위를 명확하게 표시해주세요.
-손익 관련 지표는 금액과 비율을 같이 표시해주세요.
-수치가 너무 커서 지수 형태로 표현되지 않게 단위를 조정해주세요.(백만단위, 억단위 등) 
-표는 Markdown 형식을 사용하여 작성해주세요.
-
-재무 정보:
-{financial_info}
-"""
-        response = model.generate_content(prompt)
-
-        if not response or not response.parts:
-            feedback = response.prompt_feedback if response else "No response received."
-            return f"분석 중 오류가 발생했습니다: {feedback}"
-
-        analysis = response.text
-        return analysis
-    except Exception as e:
-        return f"분석 중 오류가 발생했습니다: {str(e)}"
-
-
-# 파일로 다운로드할 수 있는 함수
-def download_summary_file(summary_text, file_name="summary.txt"):
-    st.download_button(
-        label="💾 다운로드",
-        data=summary_text,
-        file_name=file_name,
-        mime="text/plain"
-    )
-
-
-# Streamlit 앱
-st.title("🤖 AI 금융정보 검색 및 분석 서비스")
-st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영상, 뉴스, 그리고 주식 재무정보를 검색하고 AI를 이용해 분석 정보를 제공합니다. 좌측 사이드바에서 검색 조건을 선택하고 검색해보세요.")
-
-# 사이드바에 검색 조건 배치
-with st.sidebar:
-    st.header("검색 조건")
-    source = st.radio("검색할 채널을 선택하세요:", ("YouTube", "뉴스", "재무정보"))
-    if source in ["YouTube", "뉴스"]:
-        domain = st.selectbox("금융 도메인 선택", list(FINANCE_DOMAINS.keys()))
-        additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
-        period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
-    else:
-        stock_input_method = st.radio("종목 선택 방법", ("목록에서 선택", "직접 입력"))
-        if stock_input_method == "목록에서 선택":
-            stock_selection = st.selectbox("종목 선택", MAJOR_STOCKS)
-            stock_input = stock_selection.split('(')[1].split(')')[0]  # 괄호 안의 종목 코드 추출
-        else:
-            stock_input = st.text_input("종목코드(티커) 직접 입력 (예: AAPL)")
-    search_button = st.button("검색 실행")
-
-# 검색 결과 저장용 세션 상태
-if 'search_results' not in st.session_state:
-    st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': {}}
-    st.session_state.total_results = 0
-
-# 요약 결과 저장용 세션 상태
-if 'summary' not in st.session_state:
-    st.session_state.summary = ""
 
 # 검색 실행
 if search_button:
@@ -428,9 +262,11 @@ if source == "YouTube":
             
             video_id = video['id']['videoId']
             video_title = video['snippet']['title']
+            caption = video.get('caption', None)  # 저장된 자막 불러오기
+
             if st.button(f"📋 요약 보고서 요청", key=f"summarize_{video_id}"):
                 with st.spinner("영상을 요약하는 중..."):
-                    summary = summarize_video(video_id, video_title)
+                    summary = summarize_video(video_id, video_title, caption)
                     st.session_state.summary = summary
         st.divider()
 
