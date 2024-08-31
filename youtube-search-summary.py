@@ -118,6 +118,11 @@ def get_video_transcript(video_id, max_retries=3, delay=1):
             response = session.get(transcript_url)
             response.raise_for_status()
 
+            # 응답이 JSON 형식인지 확인
+            if response.headers.get('Content-Type') != 'application/json':
+                st.warning("자막 데이터가 올바르지 않거나 지원되지 않습니다.")
+                return None
+
             # 자막 데이터를 JSON으로 변환
             transcript_json = json.loads(response.text)
 
@@ -125,6 +130,14 @@ def get_video_transcript(video_id, max_retries=3, delay=1):
             transcript_text = " ".join([event['segs'][0]['utf8'] for event in transcript_json['events'] if 'segs' in event])
             
             return transcript_text
+
+        except requests.exceptions.RequestException as e:
+            st.warning(f"HTTP 요청 중 오류 발생: {str(e)}")
+            return None
+
+        except json.JSONDecodeError:
+            st.warning("자막 데이터를 JSON으로 변환하는 데 실패했습니다. 응답이 올바른 형식인지 확인하세요.")
+            return None
 
         except Exception as e:
             if attempt < max_retries - 1:
