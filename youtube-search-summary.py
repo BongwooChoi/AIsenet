@@ -130,7 +130,7 @@ def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
 
         captions = response.get('items', [])
         if not captions:
-            st.write(f"{lang} 자막을 찾을 수 없습니다.")
+            # st.write(f"{lang} 자막을 찾을 수 없습니다.")  # 메시지 제거
             continue
 
         caption_id = None
@@ -140,7 +140,7 @@ def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
                 break
 
         if not caption_id:
-            st.write(f"{lang} 자막이 존재하지 않습니다.")
+            # st.write(f"{lang} 자막이 존재하지 않습니다.")  # 메시지 제거
             continue
         
         # 자막 다운로드 URL 생성
@@ -151,10 +151,10 @@ def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
         if r.status_code == 200:
             captions_data[lang] = r.text
         else:
-            # st.write(f"{lang} 자막을 가져오는 데 실패했습니다.")
+            # st.write(f"{lang} 자막을 가져오는 데 실패했습니다.")  # 메시지 제거
+            continue
 
     return captions_data
-
 
 
 # 종목명으로 종목 코드 검색 함수
