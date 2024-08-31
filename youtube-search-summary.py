@@ -103,18 +103,28 @@ def search_videos(domain, additional_query, published_after, max_results=20):
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
 
-# 자막 가져오기 함수 (YouTube Transcript API 사용)
+ 자막 가져오기 함수
 def get_video_transcript(video_id, max_retries=3, delay=1):
     session = requests.Session()
     session.headers.update({
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
     })
+    
+    transcript_url = f"https://www.youtube.com/api/timedtext?v={video_id}&lang=ko&fmt=json3"
 
     for attempt in range(max_retries):
         try:
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, session=session)
-            transcript = transcript_list.find_transcript(['ko', 'en', 'ja'])
-            return ' '.join([entry['text'] for entry in transcript.fetch()])
+            response = session.get(transcript_url)
+            response.raise_for_status()
+
+            # 자막 데이터를 JSON으로 변환
+            transcript_json = json.loads(response.text)
+
+            # 자막 텍스트 추출
+            transcript_text = " ".join([event['segs'][0]['utf8'] for event in transcript_json['events'] if 'segs' in event])
+            
+            return transcript_text
+
         except Exception as e:
             if attempt < max_retries - 1:
                 time.sleep(delay)
