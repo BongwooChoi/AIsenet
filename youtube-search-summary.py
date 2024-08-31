@@ -117,7 +117,7 @@ def get_video_transcript(video_id, max_retries=3, delay=1):
                 return None
 
 # YouTube 비디오 자막 가져오기 함수
-def get_video_captions(video_id, languages=['en', 'ko', 'ja']):
+def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
     captions_data = {}
     
     for lang in languages:
@@ -151,7 +151,7 @@ def get_video_captions(video_id, languages=['en', 'ko', 'ja']):
         if r.status_code == 200:
             captions_data[lang] = r.text
         else:
-            st.write(f"{lang} 자막을 가져오는 데 실패했습니다.")
+            # st.write(f"{lang} 자막을 가져오는 데 실패했습니다.")
 
     return captions_data
 
@@ -211,14 +211,14 @@ def get_published_after(option):
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
     transcript = get_video_transcript(video_id)
-    transcript2 = get_video_captions(video_id)
+    caption = get_video_caption(video_id)
     
     if not transcript:
         return "자막을 가져올 수 없어 요약할 수 없습니다."
 
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
-        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\n{transcript2}"
+        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\nTranscript:\n{transcript}\n\nCaption:\n{caption}"
         response = model.generate_content(prompt)
 
         if not response or not response.parts:
