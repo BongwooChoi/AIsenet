@@ -372,7 +372,7 @@ if source == "YouTube":
             st.write(video['snippet']['description'])
             video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
             st.markdown(f"[영상 보기]({video_url})")
-            
+            st.markdown(video['id']['videoId'])
             video_id = video['id']['videoId']
             video_title = video['snippet']['title']
             if st.button(f"📋 요약 보고서 요청", key=f"summarize_{video_id}"):
