@@ -103,22 +103,22 @@ def search_videos(domain, additional_query, published_after, max_results=20):
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
 
-# 자막 가져오기 함수
-def get_video_transcript(video_id):
+# 자막 가져오기 함수 (YouTube Transcript API 사용)
+def get_video_transcript(video_id, max_retries=3, delay=1):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         'Referer': 'https://www.youtube.com/'
     }
-    
-    try:
-        # 무작위 지연 시간 추가 (1-3초)
-        time.sleep(random.uniform(1, 3))
-        
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'], headers=headers)
-        return ' '.join([entry['text'] for entry in transcript])
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        return None
+    for attempt in range(max_retries):
+        try:
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'])
+            return ' '.join([entry['text'] for entry in transcript])
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(delay)
+            else:
+                st.warning(f"자막을 가져오는데 실패했습니다: {str(e)}")
+                return None
 
 # 종목명으로 종목 코드 검색 함수
 def search_stock_symbol(stock_name):
