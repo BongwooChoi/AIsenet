@@ -88,39 +88,54 @@ def search_videos(domain, additional_query, published_after, max_results=10):
         keywords = " OR ".join(FINANCE_DOMAINS[domain])
         query = f"({keywords}) {additional_query}".strip()
         
-        request = youtube.search().list(
-            q=query,
-            type='video',
-            part='id,snippet',
-            order='relevance',
-            publishedAfter=published_after,
-            maxResults=max_results
-        )
-        response = request.execute()
+        videos_with_korean_captions = []
+        next_page_token = None
+        
+        while len(videos_with_korean_captions) < max_results:
+            request = youtube.search().list(
+                q=query,
+                type='video',
+                part='id,snippet',
+                order='relevance',
+                publishedAfter=published_after,
+                maxResults=20,
+                pageToken=next_page_token
+            )
+            response = request.execute()
+            
+            for item in response['items']:
+                video_id = item['id']['videoId']
+                
+                # 한국어 자막 확인
+                caption_request = youtube.captions().list(
+                    part="snippet",
+                    videoId=video_id
+                )
+                caption_response = caption_request.execute()
+                
+                has_korean_caption = any(
+                    caption['snippet']['language'] == 'ko'
+                    for caption in caption_response.get('items', [])
+                )
+                
+                if has_korean_caption:
+                    videos_with_korean_captions.append(item)
+                    if len(videos_with_korean_captions) == max_results:
+                        break
+            
+            next_page_token = response.get('nextPageToken')
+            if not next_page_token:
+                break
 
-        return response['items'], len(response['items'])
+        return videos_with_korean_captions, len(videos_with_korean_captions)
     except Exception as e:
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
 
-# 자막 가져오기 함수 (YouTube Transcript API 사용)
-def get_video_transcript(video_id, max_retries=3, delay=1):
-    for attempt in range(max_retries):
-        try:
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'])
-            return ' '.join([entry['text'] for entry in transcript])
-        except Exception as e:
-            if attempt < max_retries - 1:
-                time.sleep(delay)
-            else:
-                st.warning(f"자막을 가져오는데 실패했습니다: {str(e)}")
-                return None
 
 # YouTube 비디오 자막 가져오기 함수
-def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
-    transcript = {}
-    
-    for lang in languages:
+def get_video_caption(video_id):
+    try:
         # 비디오의 자막 정보 가져오기
         request = youtube.captions().list(
             part="snippet",
@@ -130,30 +145,26 @@ def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
 
         captions = response.get('items', [])
         if not captions:
-            st.write(f"{lang} 자막을 찾을 수 없습니다.")
-            continue
+            return None
 
-        caption_id = None
-        for caption in captions:
-            if caption['snippet']['language'] == lang:
-                caption_id = caption['id']
-                break
+        korean_caption = next((caption for caption in captions if caption['snippet']['language'] == 'ko'), None)
+        if not korean_caption:
+            return None
 
-        if not caption_id:
-            st.write(f"{lang} 자막이 존재하지 않습니다.")
-            continue
+        caption_id = korean_caption['id']
         
         # 자막 다운로드 URL 생성
-        caption_url = f"https://www.youtube.com/api/timedtext?lang={lang}&v={video_id}&id={caption_id}"
+        caption_url = f"https://www.youtube.com/api/timedtext?lang=ko&v={video_id}&id={caption_id}"
 
         # 자막 데이터 가져오기
         r = requests.get(caption_url)
         if r.status_code == 200:
-            transcript[lang] = r.text
+            return r.text
         else:
-            continue
-
-    return transcript
+            return None
+    except Exception as e:
+        st.error(f"자막 가져오기 중 오류 발생: {str(e)}")
+        return None
 
 # 종목명으로 종목 코드 검색 함수
 def search_stock_symbol(stock_name):
@@ -208,15 +219,14 @@ def get_published_after(option):
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
-    # transcript = get_video_transcript(video_id)
-    transcript = get_video_caption(video_id, languages=['en', 'ko', 'ja'])
+    caption = get_video_caption(video_id)
     
-    if not transcript:
-        return "자막을 가져올 수 없어 요약할 수 없습니다."
+    if not caption:
+        return "한국어 자막을 가져올 수 없어 요약할 수 없습니다."
 
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
-        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\n{transcript}"
+        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요:\n\n제목: {video_title}\n\n{transcript}"
         response = model.generate_content(prompt)
 
         if not response or not response.parts:
