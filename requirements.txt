@@ -5,6 +5,7 @@ google-auth-oauthlib
 google-auth-httplib2
 youtube-transcript-api
 yt_dlp
+youtube_dl
 requests
 plotly
 yfinance
