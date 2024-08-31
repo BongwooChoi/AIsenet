@@ -195,7 +195,7 @@ def get_published_after(option):
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
-    transcript = get_video_transcript(video_id)
+    transcript = get_transcript_rapid_api(video_id)
     
     if not transcript:
         return "자막을 가져올 수 없어 요약할 수 없습니다."
