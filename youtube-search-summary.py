@@ -219,24 +219,41 @@ def get_published_after(option):
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
-    caption = get_video_caption(video_id)
+    transcript = get_video_caption(video_id)
     
-    if not caption:
+    if not transcript:
         return "한국어 자막을 가져올 수 없어 요약할 수 없습니다."
 
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
-        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요:\n\n제목: {video_title}\n\n{transcript}"
+        prompt = f"""
+다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요:
+
+제목: {video_title}
+
+내용:
+{transcript}
+
+요약 시 다음 지침을 따라주세요:
+1. 전문적이고 객관적인 톤을 유지하세요.
+2. '죄송합니다'와 같은 사과 표현을 사용하지 마세요.
+3. 변수나 코드 관련 용어를 직접적으로 언급하지 마세요.
+4. 요약은 다음 구조를 따라 작성하세요:
+   - 핵심 주제
+   - 주요 요점 (3-5개)
+   - 세부 내용
+   - 결론 또는 시사점
+5. 한국어로 작성하세요.
+"""
         response = model.generate_content(prompt)
 
         if not response or not response.parts:
-            feedback = response.prompt_feedback if response else "No response received."
-            return f"요약 중 오류가 발생했습니다: {feedback}"
+            return "요약을 생성할 수 없습니다. 다시 시도해 주세요."
 
         summary = response.text
         return summary
     except Exception as e:
-        return f"요약 중 오류가 발생했습니다: {str(e)}"
+        return "요약 중 오류가 발생했습니다. 다시 시도해 주세요."
 
 
 # 뉴스 기사 종합 분석 함수
