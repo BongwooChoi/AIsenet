@@ -105,14 +105,16 @@ def search_videos(domain, additional_query, published_after, max_results=20):
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id, max_retries=3, delay=1):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Referer': 'https://www.youtube.com/'
-    }
+    session = requests.Session()
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+    })
+
     for attempt in range(max_retries):
         try:
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'])
-            return ' '.join([entry['text'] for entry in transcript])
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, session=session)
+            transcript = transcript_list.find_transcript(['ko', 'en', 'ja'])
+            return ' '.join([entry['text'] for entry in transcript.fetch()])
         except Exception as e:
             if attempt < max_retries - 1:
                 time.sleep(delay)
