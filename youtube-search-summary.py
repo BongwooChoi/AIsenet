@@ -210,7 +210,7 @@ def get_published_after(option):
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
-    # transcript = get_video_transcript(video_id)
+    transcript = get_video_transcript(video_id)
     caption = get_video_caption(video_id)
     
     if not transcript:
