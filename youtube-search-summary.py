@@ -332,7 +332,7 @@ else:
         st.write("뉴스 검색 결과가 없습니다.")
     else:
         st.write("재무정보 검색 결과가 없습니다.")
-st.markdown('</div>', unsafe_allow-html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 # 주의사항 및 안내
 st.sidebar.markdown("---")
