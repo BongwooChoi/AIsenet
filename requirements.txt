@@ -2,6 +2,7 @@ streamlit
 google-generativeai
 google-api-python-client
 youtube-transcript-api
+yt_dlp
 requests
 plotly
 yfinance
