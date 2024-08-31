@@ -103,56 +103,37 @@ def search_videos(domain, additional_query, published_after, max_results=10):
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
 
-# 자막 가져오기 함수 (YouTube Transcript API 사용)
+# 자막 가져오기 함수 (youtube-dl 사용)
 def get_video_transcript_or_caption(video_id, languages=['ko', 'en', 'ja'], max_retries=3, delay=1):
     transcript = None
+    ydl_opts = {
+        'skip_download': True,  # 비디오를 다운로드하지 않고 자막만 다운로드
+        'writesubtitles': True,  # 자막 파일 다운로드
+        'subtitleslangs': languages,  # 자막 언어 설정
+        'outtmpl': f'{video_id}.%(ext)s',  # 파일명 형식 지정
+    }
     
     for attempt in range(max_retries):
         try:
-            transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=languages)
-            transcript = ' '.join([entry['text'] for entry in transcript_data])
-            break
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+            
+            subtitle_file = f"{video_id}.vtt"
+            if os.path.exists(subtitle_file):
+                with open(subtitle_file, 'r', encoding='utf-8') as file:
+                    transcript = file.read()
+                    break
+            else:
+                raise FileNotFoundError("Subtitle file not found.")
+        
         except Exception as e:
             if attempt < max_retries - 1:
                 time.sleep(delay)
             else:
                 st.warning(f"자막을 가져오는데 실패했습니다: {str(e)}")
+                return None
 
-    if transcript:
-        return transcript
-
-    captions_data = {}
-    
-    for lang in languages:
-        request = youtube.captions().list(
-            part="snippet",
-            videoId=video_id
-        )
-        response = request.execute()
-
-        captions = response.get('items', [])
-        if not captions:
-            continue
-
-        caption_id = None
-        for caption in captions:
-            if caption['snippet']['language'] == lang:
-                caption_id = caption['id']
-                break
-
-        if not caption_id:
-            continue
-        
-        caption_url = f"https://www.youtube.com/api/timedtext?lang={lang}&v={video_id}&id={caption_id}"
-        r = requests.get(caption_url)
-        if r.status_code == 200:
-            captions_data[lang] = r.text
-        else:
-            continue
-
-    if captions_data:
-        return captions_data
-    return None
+    return transcript
 
 
 # 종목명으로 종목 코드 검색 함수
