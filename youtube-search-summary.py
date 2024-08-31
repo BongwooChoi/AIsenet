@@ -83,7 +83,7 @@ def search_news(domain, additional_query, published_after, max_results=20):
     return unique_articles
 
 # YouTube 검색 함수
-def search_videos(domain, additional_query, published_after, max_results=20):
+def search_videos(domain, additional_query, published_after, max_results=10):
     try:
         keywords = " OR ".join(FINANCE_DOMAINS[domain])
         query = f"({keywords}) {additional_query}".strip()
