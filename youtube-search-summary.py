@@ -10,7 +10,6 @@ import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
-import json
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="🤖", layout="wide")
@@ -104,26 +103,12 @@ def search_videos(domain, additional_query, published_after, max_results=20):
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
 
-# 자막 가져오기 함수
-# 자막 가져오기 함수 (Rapid API 사용)
+# 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id, max_retries=3, delay=1):
-    api_url = "https://subtitles-for-youtube.p.rapidapi.com/subtitles/" + video_id
-    headers = {
-        "X-RapidAPI-Host": "subtitles-for-youtube.p.rapidapi.com",
-        "X-RapidAPI-Key": st.secrets["RAPID_API_KEY"]
-    }
-
     for attempt in range(max_retries):
         try:
-            response = requests.get(api_url, headers=headers)
-            response.raise_for_status()
-            data = response.json()
-            
-            if 'subtitles' in data:
-                transcript = ' '.join([entry['text'] for entry in data['subtitles']])
-                return transcript
-            else:
-                raise Exception("Subtitles not found.")
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'])
+            return ' '.join([entry['text'] for entry in transcript])
         except Exception as e:
             if attempt < max_retries - 1:
                 time.sleep(delay)
