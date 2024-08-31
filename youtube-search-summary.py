@@ -11,8 +11,6 @@ import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
-from googleapiclient.errors import HttpError
-import html
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="🤖", layout="wide")
@@ -108,60 +106,55 @@ def search_videos(domain, additional_query, published_after, max_results=20):
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id, max_retries=3, delay=1):
-    youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
-    
+    # 1. YouTubeTranscriptApi으로 자막 가져오기
     for attempt in range(max_retries):
         try:
-            # 1. Get the caption track
-            captions = youtube.captions().list(
-                part="snippet",
-                videoId=video_id
-            ).execute()
-
-            if not captions.get('items'):
-                st.warning(f"No captions found for video ID: {video_id}")
-                return None
-
-            # Prefer manual captions over automatic ones
-            caption_id = next((item['id'] for item in captions['items'] if item['snippet']['trackKind'] == 'standard'), None)
-            if not caption_id:
-                caption_id = captions['items'][0]['id']  # Fall back to first available caption
-
-            # 2. Download the caption track
-            subtitle = youtube.captions().download(
-                id=caption_id,
-                tfmt='srt'
-            ).execute()
-
-            # 3. Parse the SRT format
-            lines = subtitle.decode('utf-8').split('\n')
-            transcript = []
-            for i in range(2, len(lines), 4):
-                if i < len(lines):
-                    text = lines[i].strip()
-                    if text:
-                        transcript.append(html.unescape(text))
-
-            return ' '.join(transcript)
-
-        except HttpError as e:
-            if e.resp.status in [403, 404]:  # Permission denied or Not found
-                st.warning(f"Error accessing captions: {e}")
-                return None
-            elif attempt < max_retries - 1:
-                time.sleep(delay)
-            else:
-                st.warning(f"Failed to retrieve captions after {max_retries} attempts: {e}")
-                return None
-
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'])
+            return ' '.join([entry['text'] for entry in transcript])
         except Exception as e:
             if attempt < max_retries - 1:
                 time.sleep(delay)
             else:
-                st.warning(f"An unexpected error occurred: {str(e)}")
-                return None
+                st.warning(f"YouTubeTranscriptApi로 자막을 가져오는데 실패했습니다: {str(e)}")
+                break  # Move on to try yt_dlp
 
-    return None  # If all attempts fail
+    # 2. YouTubeTranscriptApi 실패 시 yt_dlp로 자막 가져오기
+    try:
+        ydl_opts = {
+            'writesubtitles': True,
+            'writeautomaticsub': True,
+            'subtitleslangs': ['ko', 'en', 'ja'],
+            'skip_download': True,
+            'outtmpl': 'subtitle',
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            
+            if 'subtitles' in info and info['subtitles']:
+                # If manual subtitles are available
+                subtitle_url = next(iter(info['subtitles'].values()))[0]['url']
+            elif 'automatic_captions' in info and info['automatic_captions']:
+                # If only automatic captions are available
+                subtitle_url = next(iter(info['automatic_captions'].values()))[0]['url']
+            else:
+                return None  # No subtitles available
+
+            # Download and read the subtitle file
+            response = requests.get(subtitle_url)
+            subtitle_text = response.text
+
+            # Simple parsing of the subtitle file (this might need to be adjusted based on the format)
+            lines = subtitle_text.split('\n')
+            transcript = ' '.join([line for line in lines if not line.strip().startswith('00:')])
+
+            return transcript
+
+    except Exception as e:
+        st.warning(f"yt_dlp로 자막을 가져오는데 실패했습니다: {str(e)}")
+        return None
+
+    return None  # If all methods fail
 
 # 종목명으로 종목 코드 검색 함수
 def search_stock_symbol(stock_name):
