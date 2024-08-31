@@ -11,8 +11,6 @@ import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
-from googleapiclient.errors import HttpError
-import html
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="🤖", layout="wide")
@@ -210,61 +208,25 @@ def get_published_after(option):
     return date.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 # YouTube 영상 요약 함수
-def get_video_transcript(video_id, max_retries=3, delay=1):
-    youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
+def summarize_video(video_id, video_title):
+    transcript = get_video_transcript(video_id)
     
-    for attempt in range(max_retries):
-        try:
-            # 1. Get the caption track
-            captions = youtube.captions().list(
-                part="snippet",
-                videoId=video_id
-            ).execute()
+    if not transcript:
+        return "자막을 가져올 수 없어 요약할 수 없습니다."
 
-            if not captions.get('items'):
-                st.warning(f"No captions found for video ID: {video_id}")
-                return None
+    try:
+        model = genai.GenerativeModel('gemini-1.5-pro')
+        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\n{transcript}"
+        response = model.generate_content(prompt)
 
-            # Prefer manual captions over automatic ones
-            caption_id = next((item['id'] for item in captions['items'] if item['snippet']['trackKind'] == 'standard'), None)
-            if not caption_id:
-                caption_id = captions['items'][0]['id']  # Fall back to first available caption
+        if not response or not response.parts:
+            feedback = response.prompt_feedback if response else "No response received."
+            return f"요약 중 오류가 발생했습니다: {feedback}"
 
-            # 2. Download the caption track
-            subtitle = youtube.captions().download(
-                id=caption_id,
-                tfmt='srt'
-            ).execute()
-
-            # 3. Parse the SRT format
-            lines = subtitle.decode('utf-8').split('\n')
-            transcript = []
-            for i in range(2, len(lines), 4):
-                if i < len(lines):
-                    text = lines[i].strip()
-                    if text:
-                        transcript.append(html.unescape(text))
-
-            return ' '.join(transcript)
-
-        except HttpError as e:
-            if e.resp.status in [403, 404]:  # Permission denied or Not found
-                st.warning(f"Error accessing captions: {e}")
-                return None
-            elif attempt < max_retries - 1:
-                time.sleep(delay)
-            else:
-                st.warning(f"Failed to retrieve captions after {max_retries} attempts: {e}")
-                return None
-
-        except Exception as e:
-            if attempt < max_retries - 1:
-                time.sleep(delay)
-            else:
-                st.warning(f"An unexpected error occurred: {str(e)}")
-                return None
-
-    return None  # If all attempts fail
+        summary = response.text
+        return summary
+    except Exception as e:
+        return f"요약 중 오류가 발생했습니다: {str(e)}"
 
 
 # 뉴스 기사 종합 분석 함수
