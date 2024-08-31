@@ -105,40 +105,25 @@ def search_videos(domain, additional_query, published_after, max_results=20):
         return [], 0
 
 # 자막 가져오기 함수
+# 자막 가져오기 함수 (Rapid API 사용)
 def get_video_transcript(video_id, max_retries=3, delay=1):
-    session = requests.Session()
-    session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-    })
-    
-    transcript_url = f"https://www.youtube.com/api/timedtext?v={video_id}&lang=ko&fmt=json3"
+    api_url = "https://subtitles-for-youtube.p.rapidapi.com/subtitles/" + video_id
+    headers = {
+        "X-RapidAPI-Host": "subtitles-for-youtube.p.rapidapi.com",
+        "X-RapidAPI-Key": st.secrets["RAPID_API_KEY"]
+    }
 
     for attempt in range(max_retries):
         try:
-            response = session.get(transcript_url)
+            response = requests.get(api_url, headers=headers)
             response.raise_for_status()
-
-            # 응답이 JSON 형식인지 확인
-            if response.headers.get('Content-Type') != 'application/json':
-                st.warning("자막 데이터가 올바르지 않거나 지원되지 않습니다.")
-                return None
-
-            # 자막 데이터를 JSON으로 변환
-            transcript_json = json.loads(response.text)
-
-            # 자막 텍스트 추출
-            transcript_text = " ".join([event['segs'][0]['utf8'] for event in transcript_json['events'] if 'segs' in event])
+            data = response.json()
             
-            return transcript_text
-
-        except requests.exceptions.RequestException as e:
-            st.warning(f"HTTP 요청 중 오류 발생: {str(e)}")
-            return None
-
-        except json.JSONDecodeError:
-            st.warning("자막 데이터를 JSON으로 변환하는 데 실패했습니다. 응답이 올바른 형식인지 확인하세요.")
-            return None
-
+            if 'subtitles' in data:
+                transcript = ' '.join([entry['text'] for entry in data['subtitles']])
+                return transcript
+            else:
+                raise Exception("Subtitles not found.")
         except Exception as e:
             if attempt < max_retries - 1:
                 time.sleep(delay)
