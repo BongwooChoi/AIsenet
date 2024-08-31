@@ -151,7 +151,7 @@ def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
         if r.status_code == 200:
             transcript[lang] = r.text
         else:
-            st.write(f"{lang} 자막을 가져오는 데 실패했습니다.")
+            continue
 
     return transcript
 
