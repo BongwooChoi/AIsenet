@@ -10,7 +10,6 @@ import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
-import youtube_dl 
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="🤖", layout="wide")
@@ -84,7 +83,7 @@ def search_news(domain, additional_query, published_after, max_results=20):
     return unique_articles
 
 # YouTube 검색 함수
-def search_videos(domain, additional_query, published_after, max_results=10):
+def search_videos(domain, additional_query, published_after, max_results=20):
     try:
         keywords = " OR ".join(FINANCE_DOMAINS[domain])
         query = f"({keywords}) {additional_query}".strip()
@@ -104,38 +103,18 @@ def search_videos(domain, additional_query, published_after, max_results=10):
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
 
-# 자막 가져오기 함수 (youtube-dl 사용)
-def get_video_transcript_or_caption(video_id, languages=['ko', 'en', 'ja'], max_retries=3, delay=1):
-    transcript = None
-    ydl_opts = {
-        'skip_download': True,  # 비디오를 다운로드하지 않고 자막만 다운로드
-        'writesubtitles': True,  # 자막 파일 다운로드
-        'subtitleslangs': languages,  # 자막 언어 설정
-        'outtmpl': f'{video_id}.%(ext)s',  # 파일명 형식 지정
-    }
-    
+# 자막 가져오기 함수 (YouTube Transcript API 사용)
+def get_video_transcript(video_id, max_retries=3, delay=1):
     for attempt in range(max_retries):
         try:
-            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
-            
-            subtitle_file = f"{video_id}.vtt"
-            if os.path.exists(subtitle_file):
-                with open(subtitle_file, 'r', encoding='utf-8') as file:
-                    transcript = file.read()
-                    break
-            else:
-                raise FileNotFoundError("Subtitle file not found.")
-        
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'])
+            return ' '.join([entry['text'] for entry in transcript])
         except Exception as e:
             if attempt < max_retries - 1:
                 time.sleep(delay)
             else:
                 st.warning(f"자막을 가져오는데 실패했습니다: {str(e)}")
                 return None
-
-    return transcript
-
 
 # 종목명으로 종목 코드 검색 함수
 def search_stock_symbol(stock_name):
@@ -190,14 +169,14 @@ def get_published_after(option):
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
-    caption_or_transcript = get_video_transcript_or_caption(video_id)
+    transcript = get_video_transcript(video_id)
     
-    if not caption_or_transcript:
+    if not transcript:
         return "자막을 가져올 수 없어 요약할 수 없습니다."
 
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
-        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\n내용:\n{caption_or_transcript}"
+        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\n{transcript}"
         response = model.generate_content(prompt)
 
         if not response or not response.parts:
