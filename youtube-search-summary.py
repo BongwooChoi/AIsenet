@@ -103,8 +103,9 @@ def search_videos(domain, additional_query, published_after, max_results=20):
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
 
-# 자막 가져오기 함수 (YouTube Transcript API 사용)
+# 자막 가져오기 함수 (YouTube Transcript API와 Rapid API 사용)
 def get_video_transcript(video_id, max_retries=3, delay=1):
+    # 1차 시도: YouTube Transcript API 사용
     for attempt in range(max_retries):
         try:
             transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'])
@@ -113,8 +114,33 @@ def get_video_transcript(video_id, max_retries=3, delay=1):
             if attempt < max_retries - 1:
                 time.sleep(delay)
             else:
-                st.warning(f"자막을 가져오는데 실패했습니다: {str(e)}")
-                return None
+                st.warning(f"YouTube Transcript API를 통한 자막 가져오기 실패: {str(e)}")
+                break  # YouTube Transcript API 실패 시 Rapid API 시도
+
+    # 2차 시도: Rapid API의 YouTube Transcripts 사용
+    try:
+        return get_transcript_rapid_api(video_id)
+    except Exception as e:
+        st.error(f"Rapid API를 통한 자막 가져오기 실패: {str(e)}")
+        return None
+
+# Rapid API를 통한 자막 가져오기 함수
+def get_transcript_rapid_api(video_id):
+    url = "https://youtube-transcriptor.p.rapidapi.com/transcript"
+    querystring = {"video_id": video_id}
+    headers = {
+        "X-RapidAPI-Key": st.secrets["RAPID_API_KEY"],
+        "X-RapidAPI-Host": "youtube-transcriptor.p.rapidapi.com"
+    }
+    response = requests.get(url, headers=headers, params=querystring)
+    response.raise_for_status()  # 오류 발생 시 예외 발생
+    
+    data = response.json()
+    if data and isinstance(data, list) and len(data) > 0:
+        transcript = data[0].get('transcript', [])
+        return ' '.join([entry['text'] for entry in transcript])
+    else:
+        raise ValueError("자막을 찾을 수 없습니다.")
 
 # 종목명으로 종목 코드 검색 함수
 def search_stock_symbol(stock_name):
