@@ -104,24 +104,26 @@ def search_videos(domain, additional_query, published_after, max_results=10):
         return [], 0
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
-def get_video_transcript(video_id, max_retries=3, delay=1):
+def get_video_transcript_or_caption(video_id, languages=['ko', 'en', 'ja'], max_retries=3, delay=1):
+    transcript = None
+    
     for attempt in range(max_retries):
         try:
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'])
-            return ' '.join([entry['text'] for entry in transcript])
+            transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=languages)
+            transcript = ' '.join([entry['text'] for entry in transcript_data])
+            break
         except Exception as e:
             if attempt < max_retries - 1:
                 time.sleep(delay)
             else:
                 st.warning(f"자막을 가져오는데 실패했습니다: {str(e)}")
-                return None
 
-# YouTube 비디오 자막 가져오기 함수
-def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
+    if transcript:
+        return transcript
+
     captions_data = {}
     
     for lang in languages:
-        # 비디오의 자막 정보 가져오기
         request = youtube.captions().list(
             part="snippet",
             videoId=video_id
@@ -130,7 +132,6 @@ def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
 
         captions = response.get('items', [])
         if not captions:
-            # st.write(f"{lang} 자막을 찾을 수 없습니다.")  # 메시지 제거
             continue
 
         caption_id = None
@@ -140,21 +141,18 @@ def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
                 break
 
         if not caption_id:
-            # st.write(f"{lang} 자막이 존재하지 않습니다.")  # 메시지 제거
             continue
         
-        # 자막 다운로드 URL 생성
         caption_url = f"https://www.youtube.com/api/timedtext?lang={lang}&v={video_id}&id={caption_id}"
-
-        # 자막 데이터 가져오기
         r = requests.get(caption_url)
         if r.status_code == 200:
             captions_data[lang] = r.text
         else:
-            # st.write(f"{lang} 자막을 가져오는 데 실패했습니다.")  # 메시지 제거
             continue
 
-    return captions_data
+    if captions_data:
+        return captions_data
+    return None
 
 
 # 종목명으로 종목 코드 검색 함수
@@ -210,15 +208,14 @@ def get_published_after(option):
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
-    transcript = get_video_transcript(video_id)
-    caption = get_video_caption(video_id)
+    caption_or_transcript = get_video_transcript_or_caption(video_id)
     
-    if not caption:
+    if not caption_or_transcript:
         return "자막을 가져올 수 없어 요약할 수 없습니다."
 
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
-        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\nTranscript:\n{transcript}\n\nCaption:\n{caption}"
+        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\n내용:\n{caption_or_transcript}"
         response = model.generate_content(prompt)
 
         if not response or not response.parts:
