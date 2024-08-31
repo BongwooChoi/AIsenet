@@ -2,6 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
+import yt_dlp
 import os
 from datetime import datetime, timedelta, timezone, UTC
 import time
@@ -105,6 +106,7 @@ def search_videos(domain, additional_query, published_after, max_results=20):
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id, max_retries=3, delay=1):
+    # 1. Try using YouTubeTranscriptApi
     for attempt in range(max_retries):
         try:
             transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'])
@@ -113,8 +115,46 @@ def get_video_transcript(video_id, max_retries=3, delay=1):
             if attempt < max_retries - 1:
                 time.sleep(delay)
             else:
-                st.warning(f"자막을 가져오는데 실패했습니다: {str(e)}")
-                return None
+                st.warning(f"YouTubeTranscriptApi로 자막을 가져오는데 실패했습니다: {str(e)}")
+                break  # Move on to try yt_dlp
+
+    # 2. If YouTubeTranscriptApi fails, try using yt_dlp
+    try:
+        ydl_opts = {
+            'writesubtitles': True,
+            'writeautomaticsub': True,
+            'subtitleslangs': ['ko', 'en', 'ja'],
+            'skip_download': True,
+            'outtmpl': 'subtitle',
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            
+            if 'subtitles' in info and info['subtitles']:
+                # If manual subtitles are available
+                subtitle_url = next(iter(info['subtitles'].values()))[0]['url']
+            elif 'automatic_captions' in info and info['automatic_captions']:
+                # If only automatic captions are available
+                subtitle_url = next(iter(info['automatic_captions'].values()))[0]['url']
+            else:
+                return None  # No subtitles available
+
+            # Download and read the subtitle file
+            response = requests.get(subtitle_url)
+            subtitle_text = response.text
+
+            # Simple parsing of the subtitle file (this might need to be adjusted based on the format)
+            lines = subtitle_text.split('\n')
+            transcript = ' '.join([line for line in lines if not line.strip().startswith('00:')])
+
+            return transcript
+
+    except Exception as e:
+        st.warning(f"yt_dlp로 자막을 가져오는데 실패했습니다: {str(e)}")
+        return None
+
+    return None  # If all methods fail
 
 # 종목명으로 종목 코드 검색 함수
 def search_stock_symbol(stock_name):
