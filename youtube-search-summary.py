@@ -197,8 +197,38 @@ def summarize_video(video_id, video_title, caption):
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
 
+# Streamlit 앱
+st.title("🤖 AI 금융정보 검색 및 분석 서비스")
+st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영상, 뉴스, 그리고 주식 재무정보를 검색하고 AI를 이용해 분석 정보를 제공합니다. 좌측 사이드바에서 검색 조건을 선택하고 검색해보세요.")
+
+# 사이드바에 검색 조건 배치
+with st.sidebar:
+    st.header("검색 조건")
+    source = st.radio("검색할 채널을 선택하세요:", ("YouTube", "뉴스", "재무정보"))
+    if source in ["YouTube", "뉴스"]:
+        domain = st.selectbox("금융 도메인 선택", list(FINANCE_DOMAINS.keys()))
+        additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
+        period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
+    else:
+        stock_input_method = st.radio("종목 선택 방법", ("목록에서 선택", "직접 입력"))
+        if stock_input_method == "목록에서 선택":
+            stock_selection = st.selectbox("종목 선택", MAJOR_STOCKS)
+            stock_input = stock_selection.split('(')[1].split(')')[0]  # 괄호 안의 종목 코드 추출
+        else:
+            stock_input = st.text_input("종목코드(티커) 직접 입력 (예: AAPL)")
+    search_button = st.button("검색 실행")  # search_button 정의
+
+# 검색 결과 저장용 세션 상태
+if 'search_results' not in st.session_state:
+    st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': {}}
+    st.session_state.total_results = 0
+
+# 요약 결과 저장용 세션 상태
+if 'summary' not in st.session_state:
+    st.session_state.summary = ""
+
 # 검색 실행
-if search_button:
+if search_button:  # 검색 버튼이 눌렸을 때 실행
     if source in ["YouTube", "뉴스"]:
         with st.spinner(f"{source}를 검색하고 있습니다..."):
             published_after = get_published_after(period)
@@ -302,7 +332,7 @@ else:
         st.write("뉴스 검색 결과가 없습니다.")
     else:
         st.write("재무정보 검색 결과가 없습니다.")
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow-html=True)
 
 # 주의사항 및 안내
 st.sidebar.markdown("---")
