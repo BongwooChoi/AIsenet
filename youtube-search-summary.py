@@ -213,7 +213,7 @@ def summarize_video(video_id, video_title):
     # transcript = get_video_transcript(video_id)
     caption = get_video_caption(video_id)
     
-    if not transcript:
+    if not caption:
         return "자막을 가져올 수 없어 요약할 수 없습니다."
 
     try:
