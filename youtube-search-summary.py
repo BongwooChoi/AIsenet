@@ -103,39 +103,22 @@ def search_videos(domain, additional_query, published_after, max_results=20):
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
 
-# 자막 가져오기 함수 (YouTube Transcript API와 Rapid API 사용)
+# 자막 가져오기 함수
 def get_video_transcript(video_id):
-    # 1차 시도: YouTube Transcript API 사용
-    try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'])
-        return ' '.join([entry['text'] for entry in transcript])
-    except Exception as e:
-        st.warning(f"YouTube Transcript API를 통한 자막 가져오기 실패: {str(e)}")
-    
-    # 2차 시도: Rapid API의 YouTube Transcripts 사용
-    try:
-        return get_transcript_rapid_api(video_id)
-    except Exception as e:
-        st.error(f"Rapid API를 통한 자막 가져오기 실패: {str(e)}")
-        return None
-
-# Rapid API를 통한 자막 가져오기 함수
-def get_transcript_rapid_api(video_id):
-    url = "https://youtube-transcriptor.p.rapidapi.com/transcript"
-    querystring = {"video_id": video_id}
     headers = {
-        "X-RapidAPI-Key": st.secrets["RAPID_API_KEY"],
-        "X-RapidAPI-Host": "youtube-transcriptor.p.rapidapi.com"
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Referer': 'https://www.youtube.com/'
     }
-    response = requests.get(url, headers=headers, params=querystring)
-    response.raise_for_status()  # 오류 발생 시 예외 발생
     
-    data = response.json()
-    if data and isinstance(data, list) and len(data) > 0:
-        transcript = data[0].get('transcript', [])
+    try:
+        # 무작위 지연 시간 추가 (1-3초)
+        time.sleep(random.uniform(1, 3))
+        
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'], headers=headers)
         return ' '.join([entry['text'] for entry in transcript])
-    else:
-        raise ValueError("자막을 찾을 수 없습니다.")
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return None
 
 # 종목명으로 종목 코드 검색 함수
 def search_stock_symbol(stock_name):
