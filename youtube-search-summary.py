@@ -116,6 +116,47 @@ def get_video_transcript(video_id, max_retries=3, delay=1):
                 st.warning(f"자막을 가져오는데 실패했습니다: {str(e)}")
                 return None
 
+# YouTube 비디오 자막 가져오기 함수
+def get_video_captions(video_id, languages=['en', 'ko', 'ja']):
+    captions_data = {}
+    
+    for lang in languages:
+        # 비디오의 자막 정보 가져오기
+        request = youtube.captions().list(
+            part="snippet",
+            videoId=video_id
+        )
+        response = request.execute()
+
+        captions = response.get('items', [])
+        if not captions:
+            st.write(f"{lang} 자막을 찾을 수 없습니다.")
+            continue
+
+        caption_id = None
+        for caption in captions:
+            if caption['snippet']['language'] == lang:
+                caption_id = caption['id']
+                break
+
+        if not caption_id:
+            st.write(f"{lang} 자막이 존재하지 않습니다.")
+            continue
+        
+        # 자막 다운로드 URL 생성
+        caption_url = f"https://www.youtube.com/api/timedtext?lang={lang}&v={video_id}&id={caption_id}"
+
+        # 자막 데이터 가져오기
+        r = requests.get(caption_url)
+        if r.status_code == 200:
+            captions_data[lang] = r.text
+        else:
+            st.write(f"{lang} 자막을 가져오는 데 실패했습니다.")
+
+    return captions_data
+
+
+
 # 종목명으로 종목 코드 검색 함수
 def search_stock_symbol(stock_name):
     url = f"https://query2.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(stock_name)}&quotesCount=1&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_phrase_query"
@@ -170,13 +211,14 @@ def get_published_after(option):
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
     transcript = get_video_transcript(video_id)
+    transcript2 = get_video_captions(video_id)
     
     if not transcript:
         return "자막을 가져올 수 없어 요약할 수 없습니다."
 
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
-        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\n{transcript}"
+        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\n{transcript}{transcript2}"
         response = model.generate_content(prompt)
 
         if not response or not response.parts:
