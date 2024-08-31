@@ -104,19 +104,14 @@ def search_videos(domain, additional_query, published_after, max_results=20):
         return [], 0
 
 # 자막 가져오기 함수 (YouTube Transcript API와 Rapid API 사용)
-def get_video_transcript(video_id, max_retries=3, delay=1):
+def get_video_transcript(video_id):
     # 1차 시도: YouTube Transcript API 사용
-    for attempt in range(max_retries):
-        try:
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'])
-            return ' '.join([entry['text'] for entry in transcript])
-        except Exception as e:
-            if attempt < max_retries - 1:
-                time.sleep(delay)
-            else:
-                st.warning(f"YouTube Transcript API를 통한 자막 가져오기 실패: {str(e)}")
-                break  # YouTube Transcript API 실패 시 Rapid API 시도
-
+    try:
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'])
+        return ' '.join([entry['text'] for entry in transcript])
+    except Exception as e:
+        st.warning(f"YouTube Transcript API를 통한 자막 가져오기 실패: {str(e)}")
+    
     # 2차 시도: Rapid API의 YouTube Transcripts 사용
     try:
         return get_transcript_rapid_api(video_id)
