@@ -2,6 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api.formatters import TextFormatter
 import os
 from datetime import datetime, timedelta, timezone, UTC
 import time
@@ -67,17 +68,38 @@ def search_videos(domain, additional_query, published_after, max_results=10):
         return [], 0
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
-def get_video_transcript(video_id, max_retries=3, delay=1):
+def get_video_transcript(video_id, max_retries=3, base_delay=1):
+    user_agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36"
+    ]
+    
+    formatter = TextFormatter()
+    
     for attempt in range(max_retries):
         try:
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'])
-            return ' '.join([entry['text'] for entry in transcript])
+            # 랜덤 사용자 에이전트 선택
+            headers = {'User-Agent': random.choice(user_agents)}
+            
+            # YouTube Transcript API에 헤더 전달
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'], headers=headers)
+            
+            # 텍스트 포맷터를 사용하여 자막을 단일 문자열로 변환
+            formatted_transcript = formatter.format_transcript(transcript)
+            
+            return formatted_transcript
+        
         except Exception as e:
             if attempt < max_retries - 1:
-                time.sleep(delay)
+                # 지수 백오프를 사용한 대기 시간 계산
+                wait_time = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                time.sleep(wait_time)
             else:
-                st.warning(f"자막을 가져오는데 실패했습니다: {str(e)}")
                 return None
+
+    return None
 
 # YouTube 비디오 자막 가져오기 함수(YouTube 엔드포인트 사용)
 def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
@@ -226,20 +248,27 @@ def get_published_after(option):
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
     transcript = get_video_transcript(video_id)
-    # transcript = get_video_caption(video_id, languages=['en', 'ko', 'ja'])
+    caption = get_video_caption(video_id, languages=['en', 'ko', 'ja'])
     
-    if not transcript:
+    if not transcript and not caption:
         return "자막을 가져올 수 없어 요약할 수 없습니다."
 
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
+        
+        content = ""
+        if transcript:
+            content += f"Transcript:\n{transcript}\n\n"
+        if caption:
+            content += f"Caption:\n{caption}\n\n"
+        
         prompt = f"""
 다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요:
 
 제목: {video_title}
 
 내용:
-{transcript}
+{content}
 
 요약 시 다음 지침을 따라주세요:
 1. 전문적이고 객관적인 톤을 유지하세요.
@@ -260,7 +289,7 @@ def summarize_video(video_id, video_title):
         summary = response.text
         return summary
     except Exception as e:
-        return "요약 중 오류가 발생했습니다. 다시 시도해 주세요."
+        return f"요약 중 오류가 발생했습니다: {str(e)}"
 
 
 # 뉴스 기사 종합 분석 함수
