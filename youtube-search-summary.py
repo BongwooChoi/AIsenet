@@ -116,7 +116,7 @@ def get_video_transcript(video_id, max_retries=3, delay=1):
                 st.warning(f"자막을 가져오는데 실패했습니다: {str(e)}")
                 return None
 
-# YouTube 비디오 자막 가져오기 함수
+# YouTube 비디오 자막 가져오기 함수(YouTube 엔드포인트 사용)
 def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
     transcript = {}
     
@@ -130,7 +130,6 @@ def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
 
         captions = response.get('items', [])
         if not captions:
-            st.write(f"{lang} 자막을 찾을 수 없습니다.")
             continue
 
         caption_id = None
@@ -140,7 +139,6 @@ def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
                 break
 
         if not caption_id:
-            st.write(f"{lang} 자막이 존재하지 않습니다.")
             continue
         
         # 자막 다운로드 URL 생성
@@ -152,7 +150,6 @@ def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
             transcript[lang] = r.text
         else:
             continue
-
     return transcript
 
 # 종목명으로 종목 코드 검색 함수
