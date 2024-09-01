@@ -2,16 +2,13 @@ import streamlit as st
 import google.generativeai as genai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api.formatters import TextFormatter
 import os
-from datetime import datetime, timedelta, timezone, UTC
-import time
+from datetime import datetime, timedelta
 import requests
 import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
-import random
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="🤖", layout="wide")
@@ -22,7 +19,7 @@ youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
 
 # 금융 도메인별 키워드 정의
 FINANCE_DOMAINS = {
-    "주식": ["주식", "증권", "배당주", "주가", "상장", "차트", "코스피", "코스닥", "러셀", "나스닥", "S&P500", "다우존스", "닛케이"],
+    "주식": ["주식", "증권", "배당주", "주가", "상장", "코스피", "코스닥", "러셀", "나스닥", "S&P500", "다우존스", "닛케이"],
     "부동산": ["부동산", "아파트", "주택", "오피스텔", "분양", "청약", "재건축", "재개발", "임대", "상가"],
     "코인": ["암호화폐", "가상화폐", "가상자산", "비트코인", "이더리움", "블록체인", "코인", "거래소", "채굴", "NFT"],
     "채권/금리/환율": ["채권", "국채", "회사채", "금리", "한국은행", "한은", "연준", "환율", "통화", "달러", "엔화", "위안화", "유로화"],
@@ -46,117 +43,8 @@ MAJOR_STOCKS = [
     "McDonald's Corporation (MCD)"
 ]
 
-# YouTube 검색 함수
-def search_videos(domain, additional_query, published_after, max_results=10):
-    try:
-        keywords = " OR ".join(FINANCE_DOMAINS[domain])
-        query = f"({keywords}) {additional_query}".strip()
-        
-        request = youtube.search().list(
-            q=query,
-            type='video',
-            part='id,snippet',
-            order='relevance',
-            publishedAfter=published_after,
-            maxResults=max_results
-        )
-        response = request.execute()
-
-        return response['items'], len(response['items'])
-    except Exception as e:
-        st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
-        return [], 0
-
-# 자막 가져오기 함수 (YouTube Transcript API 사용)
-def get_video_transcript(video_id, max_retries=3, base_delay=1):
-    user_agents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36"
-    ]
-    
-    formatter = TextFormatter()
-    
-    for attempt in range(max_retries):
-        try:
-            # 랜덤 사용자 에이전트 선택
-            headers = {'User-Agent': random.choice(user_agents)}
-            
-            # YouTube Transcript API에 헤더 전달
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en', 'ja'], headers=headers)
-            
-            # 텍스트 포맷터를 사용하여 자막을 단일 문자열로 변환
-            formatted_transcript = formatter.format_transcript(transcript)
-            
-            return formatted_transcript
-        
-        except Exception as e:
-            if attempt < max_retries - 1:
-                # 지수 백오프를 사용한 대기 시간 계산
-                wait_time = base_delay * (2 ** attempt) + random.uniform(0, 1)
-                time.sleep(wait_time)
-            else:
-                return None
-
-    return None
-
-# YouTube 비디오 자막 가져오기 함수(YouTube 엔드포인트 사용)
-def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
-    transcript = {}
-    
-    user_agents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15",
-        "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0",
-        "Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; AS; rv:11.0) like Gecko"
-    ]
-    
-    headers = {
-        "User-Agent": random.choice(user_agents)
-    }
-
-    for lang in languages:
-        # 비디오의 자막 정보 가져오기
-        request = youtube.captions().list(
-            part="snippet",
-            videoId=video_id
-        )
-        response = request.execute()
-
-        captions = response.get('items', [])
-        if not captions:
-            continue
-
-        caption_id = None
-        for caption in captions:
-            if caption['snippet']['language'] == lang:
-                caption_id = caption['id']
-                break
-
-        if not caption_id:
-            continue
-        
-        # 자막 다운로드 URL 생성
-        caption_url = f"https://www.youtube.com/api/timedtext?lang={lang}&v={video_id}&id={caption_id}"
-        
-        # 자막 데이터 가져오기
-        for attempt in range(3):  # 최대 3번 시도
-            try:
-                r = requests.get(caption_url, headers=headers, timeout=10)
-                if r.status_code == 200:
-                    transcript[lang] = r.text
-                    break
-            except requests.exceptions.RequestException as e:
-                time.sleep(random.uniform(1, 3))  # 랜덤한 지연 시간 추가
-            if attempt == 2:
-                print(f"Failed to retrieve captions for {lang} after multiple attempts.")
-            
-    return transcript
-
 # 뉴스 검색 함수 (Serp API 사용)
-def search_news(domain, additional_query, published_after, max_results=20):
+def search_news(domain, additional_query, published_after, max_results=10):
     api_key = st.secrets["SERP_API_KEY"]
     keywords = " OR ".join(FINANCE_DOMAINS[domain])
     
@@ -193,6 +81,36 @@ def search_news(domain, additional_query, published_after, max_results=20):
     
     return unique_articles
 
+# YouTube 검색 함수
+def search_videos_with_transcript(domain, additional_query, published_after, max_results=10):
+    try:
+        keywords = " OR ".join(FINANCE_DOMAINS[domain])
+        query = f"({keywords}) {additional_query}".strip()
+        
+        # st.write(f"검색 쿼리: {query}")  # 디버깅용 로그
+        
+        request = youtube.search().list(
+            q=query,
+            type='video',
+            part='id,snippet',
+            order='relevance',
+            publishedAfter=published_after,
+            maxResults=max_results
+        )
+        response = request.execute()
+
+        videos_with_transcript = []
+        for item in response['items']:
+            video_id = item['id']['videoId']
+            if get_video_transcript(video_id):
+                videos_with_transcript.append(item)
+        
+        # st.write(f"자막이 있는 비디오 수: {len(videos_with_transcript)}")  # 디버깅용 로그
+        
+        return videos_with_transcript[:max_results], len(response['items'])
+    except Exception as e:
+        st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
+        return [], 0
 
 # 종목명으로 종목 코드 검색 함수
 def search_stock_symbol(stock_name):
@@ -226,71 +144,50 @@ def search_financial_info(stock_symbol):
 
 # 조회 기간 선택 함수
 def get_published_after(option):
-    today = datetime.now(UTC)
+    today = datetime.utcnow()
     if option == "최근 1일":
-        date = today - timedelta(days=1)
+        return (today - timedelta(days=1)).isoformat("T") + "Z"
     elif option == "최근 1주일":
-        date = today - timedelta(weeks=1)
+        return (today - timedelta(weeks=1)).isoformat("T") + "Z"
     elif option == "최근 1개월":
-        date = today - timedelta(weeks=4)
+        return (today - timedelta(weeks=4)).isoformat("T") + "Z"
     elif option == "최근 3개월":
-        date = today - timedelta(weeks=12)
+        return (today - timedelta(weeks=12)).isoformat("T") + "Z"
     elif option == "최근 6개월":
-        date = today - timedelta(weeks=24)
+        return (today - timedelta(weeks=24)).isoformat("T") + "Z"
     elif option == "최근 1년":
-        date = today - timedelta(weeks=52)
+        return (today - timedelta(weeks=52)).isoformat("T") + "Z"
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
-    
-    # YouTube API가 요구하는 형식으로 변환
-    return date.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+# 자막 가져오기 함수 (YouTube Transcript API 사용)
+def get_video_transcript(video_id):
+    try:
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
+        return ' '.join([entry['text'] for entry in transcript])
+    except Exception as e:
+        return None
+
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
-    transcript = get_video_transcript(video_id)
-    caption = get_video_caption(video_id, languages=['en', 'ko', 'ja'])
-    
-    if not transcript and not caption:
-        return "자막을 가져올 수 없어 요약할 수 없습니다."
-
     try:
+        transcript = get_video_transcript(video_id)
+        if not transcript:
+            return "자막을 가져올 수 없어 요약할 수 없습니다."
+
         model = genai.GenerativeModel('gemini-1.5-pro')
-        
-        content = ""
-        if transcript:
-            content += f"Transcript:\n{transcript}\n\n"
-        if caption:
-            content += f"Caption:\n{caption}\n\n"
-        
-        prompt = f"""
-다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요:
-
-제목: {video_title}
-
-내용:
-{content}
-
-요약 시 다음 지침을 따라주세요:
-1. 전문적이고 객관적인 톤을 유지하세요.
-2. 변수나 코드 관련 용어를 직접적으로 언급하지 마세요.
-3. 요약은 다음 구조를 따라 작성하세요:
-   - 핵심 주제
-   - 주요 요점 (3-5개)
-   - 세부 내용
-   - 결론 또는 시사점
-4. 한국어로 작성하세요.
-5. 당신(gemini)의 기술적 한계나 서비스 범위 한계를 언급하지 마세요.
-"""
+        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\n{transcript}"
         response = model.generate_content(prompt)
 
         if not response or not response.parts:
-            return "요약을 생성할 수 없습니다. 다시 시도해 주세요."
+            feedback = response.prompt_feedback if response else "No response received."
+            return f"요약 중 오류가 발생했습니다: {feedback}"
 
         summary = response.text
         return summary
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
-
 
 # 뉴스 기사 종합 분석 함수
 def analyze_news_articles(articles):
@@ -420,14 +317,15 @@ if search_button:
             published_after = get_published_after(period)
             
             if source == "YouTube":
-                videos, total_video_results = search_videos(domain, additional_query, published_after)
+                # YouTube 영상 검색
+                videos, total_video_results = search_videos_with_transcript(domain, additional_query, published_after)
                 st.session_state.search_results = {'videos': videos, 'news': [], 'financial_info': {}}
                 st.session_state.total_results = total_video_results
                 st.session_state.summary = ""  # YouTube 검색 시 요약 초기화
             
             elif source == "뉴스":
                 # 뉴스 검색 및 자동 분석
-                news_articles = search_news(domain, additional_query, published_after, max_results=20)
+                news_articles = search_news(domain, additional_query, published_after, max_results=10)
                 total_news_results = len(news_articles)
                 st.session_state.search_results = {'videos': [], 'news': news_articles, 'financial_info': {}}
                 st.session_state.total_results = total_news_results
