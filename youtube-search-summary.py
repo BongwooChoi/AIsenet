@@ -2,7 +2,6 @@ import streamlit as st
 import google.generativeai as genai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api.formatters import TextFormatter
 import os
 from datetime import datetime, timedelta
 import requests
@@ -19,25 +18,8 @@ genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
 
 # 프록시 리스트 읽기
-class ProxyManager:
-    def __init__(self, proxy_file='proxies.txt'):
-        self.proxy_file = proxy_file
-        self.proxies = self.load_proxies()
-        self.working_proxies = set(self.proxies)
-
-    def load_proxies(self):
-        with open(self.proxy_file, 'r') as f:
-            return [line.strip() for line in f if line.strip()]
-
-    def get_proxy(self):
-        if not self.working_proxies:
-            self.working_proxies = set(self.proxies)  # 모든 프록시 재사용
-        return random.choice(list(self.working_proxies))
-
-    def mark_proxy_as_failed(self, proxy):
-        self.working_proxies.discard(proxy)
-
-proxy_manager = ProxyManager()
+with open('proxies.txt', 'r') as f:
+    PROXIES = [line.strip() for line in f]
 
 # 금융 도메인별 키워드 정의
 FINANCE_DOMAINS = {
@@ -183,24 +165,19 @@ def get_published_after(option):
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
-def get_video_transcript(video_id, max_retries=5):
-    formatter = TextFormatter()
-    for attempt in range(max_retries):
-        proxy = proxy_manager.get_proxy()
-        proxies = {
-            'http': f'http://{proxy}',
-            'https': f'http://{proxy}'
-        }
-        try:
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'], proxies=proxies)
-            return formatter.format_transcript(transcript)
-        except Exception as e:
-            st.error(f"트랜스크립트 가져오기 실패 (프록시: {proxy}): {str(e)}")
-            proxy_manager.mark_proxy_as_failed(proxy)
-            if attempt == max_retries - 1:
-                st.error("모든 프록시 시도 실패")
-                return None
-        time.sleep(1)  # 약간의 지연 추가
+def get_video_transcript(video_id):
+    proxy = random.choice(PROXIES)
+    proxies = {
+        'http': f'http://{proxy}',
+        'https': f'http://{proxy}'
+    }
+    try:
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'], proxies=proxies)
+        return ' '.join([entry['text'] for entry in transcript])
+    except Exception as e:
+        st.error(f"자막 가져오기 실패: {str(e)}")
+        return None
+
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
