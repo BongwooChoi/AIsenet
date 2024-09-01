@@ -117,7 +117,7 @@ def get_video_transcript(video_id, max_retries=3, delay=1):
                 return None
 
 # YouTube 비디오 자막 가져오기 함수(YouTube 엔드포인트 사용)
-def get_korean_caption(video_id):
+def get_video_caption(video_id):
     transcript = None
     
     # 비디오의 자막 정보 가져오기
