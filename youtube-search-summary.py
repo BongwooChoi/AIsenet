@@ -143,7 +143,8 @@ def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
         
         # 자막 다운로드 URL 생성
         caption_url = f"https://www.youtube.com/api/timedtext?lang={lang}&v={video_id}&id={caption_id}"
-
+        st.write(caption_url)
+        
         # 자막 데이터 가져오기
         r = requests.get(caption_url)
         if r.status_code == 200:
