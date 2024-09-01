@@ -172,11 +172,36 @@ def get_video_transcript(video_id):
         'https': f'http://{proxy}'
     }
     try:
+        # First attempt: Use YouTube Transcript API
         transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'], proxies=proxies)
         return ' '.join([entry['text'] for entry in transcript])
     except Exception as e:
-        st.error(f"자막 가져오기 실패: {str(e)}")
-        return None
+        st.warning(f"YouTube Transcript API가 응답이 없어서 YouTube endpoint로 시도 중...")
+        
+        # Second attempt: Use YouTube endpoint
+        try:
+            response = requests.get(f'https://www.youtube.com/watch?v={video_id}', proxies=proxies)
+            response.raise_for_status()
+            
+            # Extract caption track URL from the response
+            start = response.text.find('"captionTracks":') + len('"captionTracks":')
+            end = response.text.find(']', start) + 1
+            caption_tracks = eval(response.text[start:end])
+            
+            if caption_tracks:
+                caption_url = caption_tracks[0]['baseUrl']
+                caption_response = requests.get(caption_url, proxies=proxies)
+                caption_response.raise_for_status()
+                
+                # Parse and clean the captions
+                captions = caption_response.text.split('\n\n')[1:]  # Skip header
+                transcript = ' '.join([' '.join(caption.split('\n')[1:]) for caption in captions])
+                return transcript
+            else:
+                return "자막을 찾을 수 없습니다."
+        except Exception as e:
+            st.error(f"YouTube endpoint도 응답 없")
+            return None
 
 
 # YouTube 영상 요약 함수
