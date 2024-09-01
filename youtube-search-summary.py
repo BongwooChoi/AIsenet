@@ -44,44 +44,6 @@ MAJOR_STOCKS = [
     "McDonald's Corporation (MCD)"
 ]
 
-# 뉴스 검색 함수 (Serp API 사용)
-def search_news(domain, additional_query, published_after, max_results=20):
-    api_key = st.secrets["SERP_API_KEY"]
-    keywords = " OR ".join(FINANCE_DOMAINS[domain])
-    
-    if additional_query:
-        query = f"({keywords}) AND ({additional_query})"
-    else:
-        query = keywords
-    
-    encoded_query = urllib.parse.quote(query)
-    
-    url = f"https://serpapi.com/search.json?q={encoded_query}&tbm=nws&api_key={api_key}&num={max_results}&sort=date"
-    
-    if published_after:
-        url += f"&tbs=qdr:{published_after}"
-    
-    response = requests.get(url)
-    news_data = response.json()
-    articles = news_data.get('news_results', [])
-    
-    unique_articles = []
-    seen_urls = set()
-    for article in articles:
-        if article['link'] not in seen_urls:
-            unique_articles.append({
-                'title': article.get('title', ''),
-                'source': {'name': article.get('source', '')},
-                'description': article.get('snippet', ''),
-                'url': article.get('link', ''),
-                'content': article.get('snippet', '')
-            })
-            seen_urls.add(article['link'])
-        if len(unique_articles) == max_results:
-            break
-    
-    return unique_articles
-
 # YouTube 검색 함수
 def search_videos(domain, additional_query, published_after, max_results=10):
     try:
@@ -93,6 +55,7 @@ def search_videos(domain, additional_query, published_after, max_results=10):
             type='video',
             part='id,snippet',
             order='relevance',
+            videoDuration='long',
             publishedAfter=published_after,
             maxResults=max_results
         )
@@ -150,7 +113,47 @@ def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
             transcript[lang] = r.text
         else:
             continue
+            
     return transcript
+
+# 뉴스 검색 함수 (Serp API 사용)
+def search_news(domain, additional_query, published_after, max_results=20):
+    api_key = st.secrets["SERP_API_KEY"]
+    keywords = " OR ".join(FINANCE_DOMAINS[domain])
+    
+    if additional_query:
+        query = f"({keywords}) AND ({additional_query})"
+    else:
+        query = keywords
+    
+    encoded_query = urllib.parse.quote(query)
+    
+    url = f"https://serpapi.com/search.json?q={encoded_query}&tbm=nws&api_key={api_key}&num={max_results}&sort=date"
+    
+    if published_after:
+        url += f"&tbs=qdr:{published_after}"
+    
+    response = requests.get(url)
+    news_data = response.json()
+    articles = news_data.get('news_results', [])
+    
+    unique_articles = []
+    seen_urls = set()
+    for article in articles:
+        if article['link'] not in seen_urls:
+            unique_articles.append({
+                'title': article.get('title', ''),
+                'source': {'name': article.get('source', '')},
+                'description': article.get('snippet', ''),
+                'url': article.get('link', ''),
+                'content': article.get('snippet', '')
+            })
+            seen_urls.add(article['link'])
+        if len(unique_articles) == max_results:
+            break
+    
+    return unique_articles
+
 
 # 종목명으로 종목 코드 검색 함수
 def search_stock_symbol(stock_name):
