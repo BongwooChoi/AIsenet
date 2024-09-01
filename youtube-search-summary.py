@@ -116,42 +116,42 @@ def get_video_transcript(video_id, max_retries=3, delay=1):
                 st.warning(f"자막을 가져오는데 실패했습니다: {str(e)}")
                 return None
 
-# YouTube 비디오 자막 가져오기 함수
-def get_video_caption(video_id, languages=['en', 'ko', 'ja']):
-    transcript = {}
+# YouTube 비디오 자막 가져오기 함수(YouTube 엔드포인트 사용)
+def get_korean_caption(video_id):
+    transcript = None
     
-    for lang in languages:
-        # 비디오의 자막 정보 가져오기
-        request = youtube.captions().list(
-            part="snippet",
-            videoId=video_id
-        )
-        response = request.execute()
+    # 비디오의 자막 정보 가져오기
+    request = youtube.captions().list(
+        part="snippet",
+        videoId=video_id
+    )
+    response = request.execute()
 
-        captions = response.get('items', [])
-        if not captions:
-            st.write(f"{lang} 자막을 찾을 수 없습니다.")
-            continue
+    captions = response.get('items', [])
+    if not captions:
+        st.write("자막을 찾을 수 없습니다.")
+        return None
 
-        caption_id = None
-        for caption in captions:
-            if caption['snippet']['language'] == lang:
-                caption_id = caption['id']
-                break
+    caption_id = None
+    for caption in captions:
+        if caption['snippet']['language'] == 'ko':
+            caption_id = caption['id']
+            break
 
-        if not caption_id:
-            st.write(f"{lang} 자막이 존재하지 않습니다.")
-            continue
-        
-        # 자막 다운로드 URL 생성
-        caption_url = f"https://www.youtube.com/api/timedtext?lang={lang}&v={video_id}&id={caption_id}"
+    if not caption_id:
+        st.write("자막이 존재하지 않습니다.")
+        return None
 
-        # 자막 데이터 가져오기
-        r = requests.get(caption_url)
-        if r.status_code == 200:
-            transcript[lang] = r.text
-        else:
-            continue
+    # 자막 다운로드 URL 생성
+    caption_url = f"https://www.youtube.com/api/timedtext?lang=ko&v={video_id}&id={caption_id}"
+    st.write(caption_url)
+
+    # 자막 데이터 가져오기
+    r = requests.get(caption_url)
+    if r.status_code == 200:
+        transcript = r.text
+    else:
+        st.write("자막을 가져오는 데 실패했습니다.")
 
     return transcript
 
@@ -208,25 +208,41 @@ def get_published_after(option):
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
-    # transcript = get_video_transcript(video_id)
-    transcript = get_video_caption(video_id, languages=['en', 'ko', 'ja'])
+    transcript = get_video_caption(video_id)
     
     if not transcript:
         return "자막을 가져올 수 없어 요약할 수 없습니다."
 
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
-        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.:\n\n제목: {video_title}\n\n{transcript}"
+        prompt = f"""
+다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요:
+
+제목: {video_title}
+
+내용:
+{transcript}
+
+요약 시 다음 지침을 따라주세요:
+1. 전문적이고 객관적인 톤을 유지하세요.
+2. '죄송합니다'와 같은 사과 표현을 사용하지 마세요.
+3. 변수나 코드 관련 용어를 직접적으로 언급하지 마세요.
+4. 요약은 다음 구조를 따라 작성하세요:
+   - 핵심 주제
+   - 주요 요점 (3-5개)
+   - 세부 내용
+   - 결론 또는 시사점
+5. 한국어로 작성하세요.
+"""
         response = model.generate_content(prompt)
 
         if not response or not response.parts:
-            feedback = response.prompt_feedback if response else "No response received."
-            return f"요약 중 오류가 발생했습니다: {feedback}"
+            return "요약을 생성할 수 없습니다. 다시 시도해 주세요."
 
         summary = response.text
         return summary
     except Exception as e:
-        return f"요약 중 오류가 발생했습니다: {str(e)}"
+        return "요약 중 오류가 발생했습니다. 다시 시도해 주세요."
 
 
 # 뉴스 기사 종합 분석 함수
