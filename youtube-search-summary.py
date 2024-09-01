@@ -17,6 +17,10 @@ st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", pag
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
 
+# 프록시 리스트 읽기
+with open('proxies.txt', 'r') as f:
+    PROXIES = [line.strip() for line in f]
+
 # 금융 도메인별 키워드 정의
 FINANCE_DOMAINS = {
     "주식": ["주식", "증권", "배당주", "주가", "상장", "코스피", "코스닥", "러셀", "나스닥", "S&P500", "다우존스", "닛케이"],
@@ -162,10 +166,16 @@ def get_published_after(option):
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id):
+    proxy = random.choice(PROXIES)
+    proxies = {
+        'http': f'http://{proxy}',
+        'https': f'http://{proxy}'
+    }
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'], proxies=proxies)
         return ' '.join([entry['text'] for entry in transcript])
     except Exception as e:
+        st.error(f"자막 가져오기 실패: {str(e)}")
         return None
 
 
