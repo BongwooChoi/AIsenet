@@ -10,3 +10,4 @@ requests
 plotly
 yfinance
 pandas
+random
