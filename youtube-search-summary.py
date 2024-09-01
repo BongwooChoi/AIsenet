@@ -103,7 +103,7 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         for item in response['items']:
             video_id = item['id']['videoId']
             # if get_video_transcript(video_id):  # 자막 있는 영상만 필터링
-                videos_with_transcript.append(item)
+            videos_with_transcript.append(item)
         
         # st.write(f"자막이 있는 비디오 수: {len(videos_with_transcript)}")  # 디버깅용 로그
         
