@@ -9,7 +9,6 @@ import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
-import random
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="🤖", layout="wide")
@@ -17,10 +16,6 @@ st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", pag
 # API 키 설정
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
-
-# 프록시 리스트 읽기
-with open('proxies.txt', 'r') as f:
-    PROXIES = [line.strip() for line in f]
 
 # 금융 도메인별 키워드 정의
 FINANCE_DOMAINS = {
@@ -167,42 +162,11 @@ def get_published_after(option):
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id):
-    proxy = random.choice(PROXIES)
-    proxies = {
-        'http': f'http://{proxy}',
-        'https': f'http://{proxy}'
-    }
     try:
-        # First attempt: Use YouTube Transcript API
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'], proxies=proxies)
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
         return ' '.join([entry['text'] for entry in transcript])
     except Exception as e:
-        st.warning(f"YouTube Transcript API가 응답이 없어서 YouTube endpoint로 시도 중...")
-        
-        # Second attempt: Use YouTube endpoint
-        try:
-            response = requests.get(f'https://www.youtube.com/watch?v={video_id}', proxies=proxies)
-            response.raise_for_status()
-            
-            # Extract caption track URL from the response
-            start = response.text.find('"captionTracks":') + len('"captionTracks":')
-            end = response.text.find(']', start) + 1
-            caption_tracks = eval(response.text[start:end])
-            
-            if caption_tracks:
-                caption_url = caption_tracks[0]['baseUrl']
-                caption_response = requests.get(caption_url, proxies=proxies)
-                caption_response.raise_for_status()
-                
-                # Parse and clean the captions
-                captions = caption_response.text.split('\n\n')[1:]  # Skip header
-                transcript = ' '.join([' '.join(caption.split('\n')[1:]) for caption in captions])
-                return transcript
-            else:
-                return "자막을 찾을 수 없습니다."
-        except Exception as e:
-            st.error(f"YouTube endpoint도 응답 없")
-            return None
+        return None
 
 
 # YouTube 영상 요약 함수
