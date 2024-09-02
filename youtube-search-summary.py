@@ -161,36 +161,12 @@ def get_published_after(option):
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
-# 자막 가져오기 함수 (YouTube Transcript API 사용 + YouTube Data API 캡션 사용)
 def get_video_transcript(video_id):
     try:
-        # 먼저 YouTube Transcript API 시도
         transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
         return ' '.join([entry['text'] for entry in transcript])
     except Exception as e:
-        # 실패하면 YouTube Data API 시도
-        
-        try:
-            request = youtube.captions().list(
-                part="snippet",
-                videoId=video_id
-            )
-            response = request.execute()
-
-            caption_id = None
-            for item in response['items']:
-                if 'ko' in item['snippet']['language'] or 'en' in item['snippet']['language']:
-                    caption_id = item['id']
-                    break
-
-            if caption_id:
-                download_request = youtube.captions().download(id=caption_id).execute()
-                return download_request.decode('utf-8')
-            else:
-                return None
-        except Exception as e:
-            return None
-
+        return None
 
 
 # YouTube 영상 요약 함수
