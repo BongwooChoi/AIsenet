@@ -3,7 +3,7 @@ import google.generativeai as genai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 import requests
 import urllib.parse
 import pandas as pd
@@ -144,7 +144,7 @@ def search_financial_info(stock_symbol):
 
 # 조회 기간 선택 함수
 def get_published_after(option):
-    today = datetime.now(tz=timezone(timedelta(hours=9)))  # 한국 시간 기준 현재 시간
+    today = datetime.utcnow()
     if option == "최근 1일":
         return (today - timedelta(days=1)).isoformat("T") + "Z"
     elif option == "최근 1주일":
