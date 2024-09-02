@@ -281,7 +281,7 @@ def download_summary_file(summary_text, file_name="summary.txt"):
 
 
 # Streamlit 앱
-st.title("🤖 AI 금융정보 검색 및 분석 서비스")
+st.markdown('<h1>🤖 금융 AI 서비스 플랫폼 <span style="color:red">AI</span>senet</h1>', unsafe_allow_html=True)
 st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영상, 뉴스, 그리고 주식 재무정보를 검색하고 AI를 이용해 분석 정보를 제공합니다. 좌측 사이드바에서 검색 조건을 선택하고 검색해보세요.")
 
 # 사이드바에 검색 조건 배치
