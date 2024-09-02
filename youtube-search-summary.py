@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 import yfinance as yf
 
 # Streamlit 앱 설정
-st.set_page_config(page_title="AI 금융정보 검색 및 분석 서비스", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="금융 AI 서비스 플랫폼 AIsenet", page_icon="🤖", layout="wide")
 
 # API 키 설정
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
