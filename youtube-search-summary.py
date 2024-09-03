@@ -9,6 +9,9 @@ import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
+import whisper
+import yt_dlp
+import openai
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="금융 AI 서비스 플랫폼 AIsenet", page_icon="🤖", layout="wide")
@@ -16,6 +19,7 @@ st.set_page_config(page_title="금융 AI 서비스 플랫폼 AIsenet", page_icon
 # API 키 설정
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # 금융 도메인별 키워드 정의
 FINANCE_DOMAINS = {
@@ -160,14 +164,57 @@ def get_published_after(option):
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
-# 자막 가져오기 함수 (YouTube Transcript API 사용)
+# Whisper 모델 로딩 함수 수정
+@st.cache_resource
+def load_whisper_model():
+    return None  # 초기에는 None을 반환
+
+# 전역 변수로 whisper_model 선언
+whisper_model = None
+
 def get_video_transcript(video_id):
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
         return ' '.join([entry['text'] for entry in transcript])
     except Exception as e:
+        st.info("자막을 가져올 수 없습니다. 음성인식으로 요약하시겠습니까?")
+        if st.button("음성인식 실행"):
+            return generate_whisper_transcript(video_id)
         return None
 
+# Whisper를 사용한 자막 생성
+def generate_whisper_transcript(video_id):
+    global whisper_model
+    
+    if whisper_model is None:
+        with st.spinner("Whisper 모델을 로드 중입니다..."):
+            whisper_model = whisper.load_model("base")
+    
+    try:
+        with st.spinner("음성인식 진행 중입니다..."):
+            # YouTube에서 오디오 다운로드
+            ydl_opts = {
+                'format': 'bestaudio/best',
+                'postprocessors': [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'wav',
+                    'preferredquality': '192',
+                }],
+                'outtmpl': f'{video_id}.%(ext)s',
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([f'https://www.youtube.com/watch?v={video_id}'])
+            
+            # Whisper를 사용하여 오디오 전사
+            result = whisper_model.transcribe(f"{video_id}.wav")
+            
+            # 다운로드한 오디오 파일 삭제
+            os.remove(f"{video_id}.wav")
+            
+            return result["text"]
+    except Exception as e:
+        st.error(f"음성인식 중 오류가 발생했습니다: {str(e)}")
+        return None
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
