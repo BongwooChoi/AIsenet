@@ -3,7 +3,7 @@ import google.generativeai as genai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 import requests
 import urllib.parse
 import pandas as pd
@@ -144,21 +144,21 @@ def search_financial_info(stock_symbol):
 
 # 조회 기간 선택 함수
 def get_published_after(option):
-    today = datetime.now(timezone.utc)
+    today = datetime.utcnow()
     if option == "최근 1일":
-        return (today - timedelta(days=1)).isoformat(timespec="seconds") + "Z"
+        return (today - timedelta(days=1)).isoformat("T") + "Z"
     elif option == "최근 1주일":
-        return (today - timedelta(weeks=1)).isoformat(timespec="seconds") + "Z"
+        return (today - timedelta(weeks=1)).isoformat("T") + "Z"
     elif option == "최근 1개월":
-        return (today - timedelta(weeks=4)).isoformat(timespec="seconds") + "Z"
+        return (today - timedelta(weeks=4)).isoformat("T") + "Z"
     elif option == "최근 3개월":
-        return (today - timedelta(weeks=12)).isoformat(timespec="seconds") + "Z"
+        return (today - timedelta(weeks=12)).isoformat("T") + "Z"
     elif option == "최근 6개월":
-        return (today - timedelta(weeks=24)).isoformat(timespec="seconds") + "Z"
+        return (today - timedelta(weeks=24)).isoformat("T") + "Z"
     elif option == "최근 1년":
-        return (today - timedelta(weeks=52)).isoformat(timespec="seconds") + "Z"
+        return (today - timedelta(weeks=52)).isoformat("T") + "Z"
     else:
-        return None
+        return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id):
