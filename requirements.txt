@@ -6,6 +6,4 @@ requests
 plotly
 yfinance
 pandas
-whisper
-yt_dlp
-openai
+langchain.document_loaders
