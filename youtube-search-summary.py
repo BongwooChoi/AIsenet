@@ -9,7 +9,6 @@ import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
-from langchain_community.document_loaders import YoutubeLoader
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="금융 AI 서비스 플랫폼 AIsenet", page_icon="🤖", layout="wide")
@@ -161,24 +160,14 @@ def get_published_after(option):
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
-# 자막 가져오기 함수 (LangChain YoutubeLoader 사용)
+# 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id):
     try:
-        # 유튜브 URL을 생성하고, YoutubeLoader로 자막 로드
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
-        loader = YoutubeLoader.from_youtube_url(video_url, add_auto_captions=True)
-        
-        st.write(video_url)
-        
-        # 자막 텍스트 로드
-        documents = loader.load()
-        transcript = ' '.join([doc.page_content for doc in documents])  # 자막을 하나의 문자열로 결합
-
-        st.write(transcript)
-        
-        return transcript
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
+        return ' '.join([entry['text'] for entry in transcript])
     except Exception as e:
         return None
+
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
