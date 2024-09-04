@@ -6,4 +6,4 @@ requests
 plotly
 yfinance
 pandas
-langchain.document_loaders
+langchain
