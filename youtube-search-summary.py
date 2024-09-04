@@ -9,7 +9,7 @@ import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
-from langchain_community.document_loaders.youtube import YouTubeLoader
+from langchain_community.document_loaders import YouTubeLoader
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="금융 AI 서비스 플랫폼 AIsenet", page_icon="🤖", layout="wide")
