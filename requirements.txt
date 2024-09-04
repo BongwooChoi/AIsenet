@@ -6,5 +6,4 @@ requests
 plotly
 yfinance
 pandas
-langchain
-langchain-community
+langchain_community
