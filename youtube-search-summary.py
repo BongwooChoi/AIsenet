@@ -9,6 +9,7 @@ import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
+from langchain_community.document_loaders.youtube import YouTubeLoader
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="금융 AI 서비스 플랫폼 AIsenet", page_icon="🤖", layout="wide")
@@ -163,8 +164,9 @@ def get_published_after(option):
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id):
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
-        return ' '.join([entry['text'] for entry in transcript])
+        loader = YouTubeLoader(video_id=video_id, languages=['ko', 'en'])
+        transcript = loader.load()
+        return ' '.join([entry.page_content for entry in transcript])
     except Exception as e:
         return None
 
