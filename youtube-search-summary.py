@@ -168,9 +168,13 @@ def get_video_transcript(video_id):
         video_url = f"https://www.youtube.com/watch?v={video_id}"
         loader = YoutubeLoader.from_youtube_url(video_url, add_auto_captions=True)
         
+        st.write(video_url)
+        
         # 자막 텍스트 로드
         documents = loader.load()
         transcript = ' '.join([doc.page_content for doc in documents])  # 자막을 하나의 문자열로 결합
+
+        st.write(transcript)
         
         return transcript
     except Exception as e:
