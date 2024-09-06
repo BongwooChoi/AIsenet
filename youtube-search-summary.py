@@ -178,7 +178,7 @@ def summarize_video(video_id, video_title):
 
         model = genai.GenerativeModel('gemini-1.5-pro')
         prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.
-                영상 제목에 지시대명사 같은 표현이 있는 경우 이런 표현들이 구체적으로 어떤 것을 의미하는 것인지 파악해서 보고서에 포함해주세요.:\n\n제목: {video_title}\n\n{transcript}"
+                영상 제목에 지시대명사 같은 표현이 있는 경우 이런 표현이 구체적으로 어떤 것을 의미하는 것인지 파악해서 보고서에 포함해주세요.:\n\n제목: {video_title}\n\n{transcript}"
         response = model.generate_content(prompt)
 
         if not response or not response.parts:
