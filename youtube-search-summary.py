@@ -177,8 +177,7 @@ def summarize_video(video_id, video_title):
             return "자막을 가져올 수 없어 요약할 수 없습니다."
 
         model = genai.GenerativeModel('gemini-1.5-pro')
-        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다.
-                영상 제목에 지시대명사 같은 표현이 있는 경우 이런 표현이 구체적으로 어떤 것을 의미하는 것인지 파악해서 보고서에 포함해주세요.:\n\n제목: {video_title}\n\n{transcript}"
+        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다. 영상 제목에 지시대명사 같은 표현이 있는 경우 이런 표현이 구체적으로 어떤 것을 의미하는 것인지 파악해서 보고서에 포함해주세요.:\n\n제목: {video_title}\n\n{transcript}"
         response = model.generate_content(prompt)
 
         if not response or not response.parts:
@@ -420,7 +419,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # 주의사항 및 안내
 st.sidebar.markdown("---")
 st.sidebar.markdown("**안내사항:**")
-st.sidebar.markdown("- 이 서비스는 Google AI Studio API, YouTube Data API, Google Search API, SERP API를 사용합니다.")
+st.sidebar.markdown("- 이 서비스는 Google AI Studio API, YouTube Data API, Google Search API, Yahoo Finance를 사용합니다.")
 st.sidebar.markdown("- 검색 결과의 품질과 복잡도에 따라 처리 시간이 달라질 수 있습니다.")
 st.sidebar.markdown("- 저작권 보호를 위해 개인적인 용도로만 사용해주세요.")
 st.sidebar.markdown("- 제공되는 정보는 참고용이며, 투자 결정에 직접적으로 사용하지 마세요.")
