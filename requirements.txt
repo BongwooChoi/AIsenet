@@ -11,3 +11,4 @@ langchain_community
 google-cloud-speech
 pydub
 yt-dlp
+pytube
