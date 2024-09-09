@@ -9,6 +9,12 @@ import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
+from google.cloud import speech_v1p1beta1 as speech
+from google.oauth2 import service_account
+import io
+from pydub import AudioSegment
+import tempfile
+import yt_dlp
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="금융 AI 서비스 플랫폼 AIsenet", page_icon="🤖", layout="wide")
@@ -16,6 +22,11 @@ st.set_page_config(page_title="금융 AI 서비스 플랫폼 AIsenet", page_icon
 # API 키 설정
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
+
+# Google Cloud 인증 설정
+credentials = service_account.Credentials.from_service_account_info(
+    st.secrets["GOOGLE_CLOUD_CREDENTIALS"]
+)
 
 # 금융 도메인별 키워드 정의
 FINANCE_DOMAINS = {
@@ -160,14 +171,65 @@ def get_published_after(option):
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
+
+# Speech-to-Text 클라이언트 초기화
+speech_client = speech.SpeechClient(credentials=credentials)
+
+def download_audio(video_id):
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'wav',
+        }],
+        'outtmpl': 'audio.%(ext)s',
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([f'https://www.youtube.com/watch?v={video_id}'])
+    return 'audio.wav'
+
+def transcribe_audio(audio_file):
+    with io.open(audio_file, 'rb') as audio_file:
+        content = audio_file.read()
+
+    audio = speech.RecognitionAudio(content=content)
+    config = speech.RecognitionConfig(
+        encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+        sample_rate_hertz=16000,
+        language_code='ko-KR',  # 한국어로 설정, 필요에 따라 변경 가능
+        enable_automatic_punctuation=True
+    )
+
+    operation = speech_client.long_running_recognize(config=config, audio=audio)
+
+    st.text("음성 인식으로 자막 생성 중...")
+    progress_bar = st.progress(0)
+    
+    while not operation.done():
+        progress_bar.progress(operation.metadata.progress_percent / 100)
+
+    progress_bar.progress(1.0)
+    st.success("자막 생성 완료!")
+
+    response = operation.result()
+
+    transcript = ""
+    for result in response.results:
+        transcript += result.alternatives[0].transcript + " "
+
+    return transcript
+
+
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id):
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
         return ' '.join([entry['text'] for entry in transcript])
     except Exception as e:
-        return None
-
+        audio_file = download_audio(video_id)
+        transcript = transcribe_audio(audio_file)
+        os.remove(audio_file)  # 임시 오디오 파일 삭제
+        return transcript
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
