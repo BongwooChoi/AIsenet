@@ -8,3 +8,6 @@ yfinance
 pandas
 langchain
 langchain_community
+google-cloud-speech
+pydub
+yt-dlp
