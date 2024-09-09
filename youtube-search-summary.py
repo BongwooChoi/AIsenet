@@ -15,6 +15,7 @@ import io
 from pydub import AudioSegment
 import tempfile
 import yt_dlp
+from pytube import YouTube
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="금융 AI 서비스 플랫폼 AIsenet", page_icon="🤖", layout="wide")
@@ -176,6 +177,9 @@ def get_published_after(option):
 speech_client = speech.SpeechClient(credentials=credentials)
 
 def download_audio(video_id):
+    video_url = f'https://www.youtube.com/watch?v={video_id}'
+    
+    # 방법 1: yt-dlp with cookies
     ydl_opts = {
         'format': 'bestaudio/best',
         'postprocessors': [{
@@ -183,10 +187,35 @@ def download_audio(video_id):
             'preferredcodec': 'wav',
         }],
         'outtmpl': 'audio.%(ext)s',
+        'cookiefile': 'youtube_cookies.txt',  # YouTube 로그인 쿠키 파일
     }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([f'https://www.youtube.com/watch?v={video_id}'])
-    return 'audio.wav'
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([video_url])
+        return 'audio.wav'
+    except Exception as e:
+        st.warning(f"yt-dlp 다운로드 실패: {str(e)}")
+    
+    # 방법 2: pytube
+    try:
+        yt = YouTube(video_url)
+        audio_stream = yt.streams.filter(only_audio=True).first()
+        audio_stream.download(filename='audio.wav')
+        return 'audio.wav'
+    except Exception as e:
+        st.warning(f"pytube 다운로드 실패: {str(e)}")
+    
+    # 방법 3: 직접 요청
+    try:
+        response = requests.get(video_url)
+        with open('video.html', 'wb') as f:
+            f.write(response.content)
+        st.warning("동영상 페이지를 다운로드했습니다. 자막 추출 로직을 구현해야 합니다.")
+        return 'video.html'
+    except Exception as e:
+        st.error(f"모든 다운로드 방법이 실패했습니다: {str(e)}")
+    
+    return None
 
 def transcribe_audio(audio_file):
     with io.open(audio_file, 'rb') as audio_file:
@@ -226,10 +255,19 @@ def get_video_transcript(video_id):
         transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
         return ' '.join([entry['text'] for entry in transcript])
     except Exception as e:
+        st.warning("YouTube 자막을 가져올 수 없습니다. 대체 방법을 시도합니다.")
         audio_file = download_audio(video_id)
-        transcript = transcribe_audio(audio_file)
-        os.remove(audio_file)  # 임시 오디오 파일 삭제
-        return transcript
+        if audio_file:
+            if audio_file.endswith('.wav'):
+                transcript = transcribe_audio(audio_file)
+                os.remove(audio_file)  # 임시 오디오 파일 삭제
+                return transcript
+            elif audio_file.endswith('.html'):
+                st.warning("동영상 페이지에서 자막을 추출하는 로직을 구현해야 합니다.")
+                # TODO: HTML에서 자막 추출 로직 구현
+                return "자막 추출 실패"
+        else:
+            return "자막 및 오디오 추출 실패"
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
