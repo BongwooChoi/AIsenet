@@ -179,21 +179,30 @@ def get_video_transcript(video_id):
         data = response.json()
         captions = data.get('captions', [])
         
+        st.write("API 응답:", data)  # 디버깅: API 응답 전체 출력
+        
         if captions:
             # 한국어 자막 우선, 없으면 영어 자막, 그 외의 경우 첫 번째 자막 사용
             preferred_langs = ['ko', 'en']
             caption = next((cap for cap in captions if cap['language']['code'] in preferred_langs), captions[0])
+            
+            st.write("선택된 자막 정보:", caption)  # 디버깅: 선택된 자막 정보 출력
             
             # 자막 URL에서 실제 자막 내용 가져오기
             caption_url = caption['url']
             caption_response = requests.get(caption_url)
             caption_response.raise_for_status()
             
+            st.write("자막 URL 응답:", caption_response.text[:500])  # 디버깅: 자막 URL 응답 일부 출력
+            
             # 자막 텍스트 파싱 (간단한 파싱, 필요에 따라 더 정교하게 수정 가능)
             transcript = ' '.join([line.split('-->')[1].strip() for line in caption_response.text.split('\n') if '-->' in line])
             
+            st.write("파싱된 자막 (일부):", transcript[:500])  # 디버깅: 파싱된 자막 일부 출력
+            
             return transcript
         else:
+            st.write("자막을 찾을 수 없습니다.")
             return "자막을 찾을 수 없습니다."
     except requests.RequestException as e:
         st.error(f"자막을 가져오는 중 오류가 발생했습니다: {str(e)}")
