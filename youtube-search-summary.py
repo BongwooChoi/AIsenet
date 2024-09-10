@@ -16,7 +16,6 @@ st.set_page_config(page_title="금융 AI 서비스 플랫폼 AIsenet", page_icon
 # API 키 설정
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
-RAPID_API_KEY = st.secrets["RAPID_API_KEY"]
 
 # 금융 도메인별 키워드 정의
 FINANCE_DOMAINS = {
@@ -161,52 +160,14 @@ def get_published_after(option):
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
-# 자막 가져오기 함수
+# 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id):
-    url = "https://youtube-media-downloader.p.rapidapi.com/v2/video/details"
-    
-    querystring = {"videoId": video_id}
-    
-    headers = {
-        "X-RapidAPI-Key": RAPID_API_KEY,
-        "X-RapidAPI-Host": "youtube-media-downloader.p.rapidapi.com"
-    }
-    
     try:
-        response = requests.get(url, headers=headers, params=querystring)
-        response.raise_for_status()  # Raises a HTTPError if the status is 4xx, 5xx
-        
-        data = response.json()
-        captions = data.get('captions', [])
-        
-        st.write("API 응답:", data)  # 디버깅: API 응답 전체 출력
-        
-        if captions:
-            # 한국어 자막 우선, 없으면 영어 자막, 그 외의 경우 첫 번째 자막 사용
-            preferred_langs = ['ko', 'en']
-            caption = next((cap for cap in captions if cap['language']['code'] in preferred_langs), captions[0])
-            
-            st.write("선택된 자막 정보:", caption)  # 디버깅: 선택된 자막 정보 출력
-            
-            # 자막 URL에서 실제 자막 내용 가져오기
-            caption_url = caption['url']
-            caption_response = requests.get(caption_url)
-            caption_response.raise_for_status()
-            
-            st.write("자막 URL 응답:", caption_response.text[:500])  # 디버깅: 자막 URL 응답 일부 출력
-            
-            # 자막 텍스트 파싱 (간단한 파싱, 필요에 따라 더 정교하게 수정 가능)
-            transcript = ' '.join([line.split('-->')[1].strip() for line in caption_response.text.split('\n') if '-->' in line])
-            
-            st.write("파싱된 자막 (일부):", transcript[:500])  # 디버깅: 파싱된 자막 일부 출력
-            
-            return transcript
-        else:
-            st.write("자막을 찾을 수 없습니다.")
-            return "자막을 찾을 수 없습니다."
-    except requests.RequestException as e:
-        st.error(f"자막을 가져오는 중 오류가 발생했습니다: {str(e)}")
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
+        return ' '.join([entry['text'] for entry in transcript])
+    except Exception as e:
         return None
+
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
