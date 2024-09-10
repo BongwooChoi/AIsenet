@@ -16,6 +16,7 @@ st.set_page_config(page_title="금융 AI 서비스 플랫폼 AIsenet", page_icon
 # API 키 설정
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
 youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
+RAPID_API_KEY = st.secrets["RAPID_API_KEY"]
 
 # 금융 도메인별 키워드 정의
 FINANCE_DOMAINS = {
@@ -160,12 +161,33 @@ def get_published_after(option):
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
-# 자막 가져오기 함수 (YouTube Transcript API 사용)
+# 자막 가져오기 함수
 def get_video_transcript(video_id):
+    url = "https://youtube-media-downloader.p.rapidapi.com/v2/video/details"
+    
+    querystring = {"videoId": video_id}
+    
+    headers = {
+        "X-RapidAPI-Key": RAPID_API_KEY,
+        "X-RapidAPI-Host": "youtube-media-downloader.p.rapidapi.com"
+    }
+    
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
-        return ' '.join([entry['text'] for entry in transcript])
-    except Exception as e:
+        response = requests.get(url, headers=headers, params=querystring)
+        response.raise_for_status()  # Raises a HTTPError if the status is 4xx, 5xx
+        
+        data = response.json()
+        captions = data.get('captions', [])
+        
+        if captions:
+            # 한국어 자막 우선, 없으면 영어 자막, 그 외의 경우 첫 번째 자막 사용
+            preferred_langs = ['ko', 'en']
+            transcript = next((cap['text'] for cap in captions if cap['language']['code'] in preferred_langs), captions[0]['text'])
+            return transcript
+        else:
+            return "자막을 찾을 수 없습니다."
+    except requests.RequestException as e:
+        st.error(f"자막을 가져오는 중 오류가 발생했습니다: {str(e)}")
         return None
 
 
