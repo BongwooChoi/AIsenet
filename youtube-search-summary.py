@@ -9,9 +9,6 @@ import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
-from bs4 import BeautifulSoup
-import re
-
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="금융 AI 서비스 플랫폼 AIsenet", page_icon="🤖", layout="wide")
@@ -163,45 +160,13 @@ def get_published_after(option):
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
-# 자막 가져오기 함수
+# 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id):
     try:
-        # YouTube 동영상 페이지 URL
-        url = f"https://www.youtube.com/watch?v={video_id}"
-        
-        # User-Agent 설정
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        }
-        
-        # 페이지 요청
-        response = requests.get(url, headers=headers)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # 자막 데이터 찾기
-        pattern = r'"captions":({.*?})]'
-        matches = re.findall(pattern, str(soup))
-        
-        if matches:
-            captions_data = matches[0]
-            caption_version = re.search(r'"captionTracks":\[(.+?)\]', captions_data)
-            
-            if caption_version:
-                caption = caption_version.group(1)
-                base_url = re.search(r'"baseUrl":"(.+?)"', caption).group(1)
-                
-                # 자막 XML 가져오기
-                transcript_response = requests.get(base_url)
-                transcript_soup = BeautifulSoup(transcript_response.text, 'xml')
-                
-                # 자막 텍스트 추출
-                transcript = ' '.join([text.string.strip() for text in transcript_soup.find_all('text') if text.string])
-                
-                return transcript
-        
-        return "자막을 가져올 수 없습니다."
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
+        return ' '.join([entry['text'] for entry in transcript])
     except Exception as e:
-        return f"자막 가져오기 중 오류 발생: {str(e)}"
+        return None
 
 
 # YouTube 영상 요약 함수
