@@ -3,7 +3,7 @@ import google.generativeai as genai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 import requests
 import urllib.parse
 import pandas as pd
@@ -142,24 +142,21 @@ def search_financial_info(stock_symbol):
         st.error(f"재무정보 검색 중 오류 발생: {str(e)}")
         return None
 
-# 한국 시간대를 위한 UTC+9 시간대 설정
-KST = timezone(timedelta(hours=9))
-
-# 조회 기간 선택 함수 (UTC로 변환)
+# 조회 기간 선택 함수
 def get_published_after(option):
-    today = datetime.now(KST).astimezone(timezone.utc)  # 현재 시간을 UTC로 변환
+    today = datetime.utcnow()
     if option == "최근 1일":
-        return (today - timedelta(days=1)).replace(microsecond=0).isoformat() + "Z"
+        return (today - timedelta(days=1)).isoformat("T") + "Z"
     elif option == "최근 1주일":
-        return (today - timedelta(weeks=1)).replace(microsecond=0).isoformat() + "Z"
+        return (today - timedelta(weeks=1)).isoformat("T") + "Z"
     elif option == "최근 1개월":
-        return (today - timedelta(weeks=4)).replace(microsecond=0).isoformat() + "Z"
+        return (today - timedelta(weeks=4)).isoformat("T") + "Z"
     elif option == "최근 3개월":
-        return (today - timedelta(weeks=12)).replace(microsecond=0).isoformat() + "Z"
+        return (today - timedelta(weeks=12)).isoformat("T") + "Z"
     elif option == "최근 6개월":
-        return (today - timedelta(weeks=24)).replace(microsecond=0).isoformat() + "Z"
+        return (today - timedelta(weeks=24)).isoformat("T") + "Z"
     elif option == "최근 1년":
-        return (today - timedelta(weeks=52)).replace(microsecond=0).isoformat() + "Z"
+        return (today - timedelta(weeks=52)).isoformat("T") + "Z"
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
