@@ -6,4 +6,3 @@ requests
 plotly
 yfinance
 pandas
-zoneinfo
