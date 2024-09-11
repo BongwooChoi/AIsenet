@@ -4,7 +4,6 @@ from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
 import os
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 import requests
 import urllib.parse
 import pandas as pd
@@ -145,25 +144,21 @@ def search_financial_info(stock_symbol):
 
 # 조회 기간 선택 함수
 def get_published_after(option):
-    korea_tz = ZoneInfo("Asia/Seoul")
-    today = datetime.now(korea_tz)
+    today = datetime.utcnow()
     if option == "최근 1일":
-        delta = timedelta(days=1)
+        return (today - timedelta(days=1)).isoformat("T") + "Z"
     elif option == "최근 1주일":
-        delta = timedelta(weeks=1)
+        return (today - timedelta(weeks=1)).isoformat("T") + "Z"
     elif option == "최근 1개월":
-        delta = timedelta(weeks=4)
+        return (today - timedelta(weeks=4)).isoformat("T") + "Z"
     elif option == "최근 3개월":
-        delta = timedelta(weeks=12)
+        return (today - timedelta(weeks=12)).isoformat("T") + "Z"
     elif option == "최근 6개월":
-        delta = timedelta(weeks=24)
+        return (today - timedelta(weeks=24)).isoformat("T") + "Z"
     elif option == "최근 1년":
-        delta = timedelta(weeks=52)
+        return (today - timedelta(weeks=52)).isoformat("T") + "Z"
     else:
-        return None
-    
-    past_date = today - delta
-    return past_date.strftime("%Y-%m-%d")
+        return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id):
@@ -420,25 +415,6 @@ if source == "YouTube":
                 with st.spinner("영상을 요약하는 중..."):
                     summary = summarize_video(video_id, video_title)
                     st.session_state.summary = summary
-        st.divider()
-
-elif source == "뉴스":
-    st.subheader(f"📰 검색된 뉴스 기사")
-    
-    # 뉴스 종합 분석 요청 버튼 추가
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.write(f"총 {st.session_state.total_results}개의 뉴스 기사를 찾았습니다.")
-    with col2:
-        if st.button("📋 뉴스 종합 분석 요청청"):
-            with st.spinner("뉴스 기사를 종합 분석 중입니다..."):
-                st.session_state.summary = analyze_news_articles(st.session_state.search_results['news'])
-    
-    for i, article in enumerate(st.session_state.search_results['news']):
-        st.subheader(article['title'])
-        st.markdown(f"**출처:** {article['source']['name']}")
-        st.write(article['description'])
-        st.markdown(f"[기사 보기]({article['url']})")
         st.divider()
 
 elif source == "뉴스":
