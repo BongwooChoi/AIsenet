@@ -3,7 +3,7 @@ import google.generativeai as genai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import requests
 import urllib.parse
 import pandas as pd
@@ -142,9 +142,12 @@ def search_financial_info(stock_symbol):
         st.error(f"재무정보 검색 중 오류 발생: {str(e)}")
         return None
 
+# 한국 시간대를 위한 UTC+9 시간대 설정
+KST = timezone(timedelta(hours=9))
+
 # 조회 기간 선택 함수
 def get_published_after(option):
-    today = datetime.utcnow()
+    today = datetime.now(KST)  # 현재 시간을 한국 시간대로 설정
     if option == "최근 1일":
         return (today - timedelta(days=1)).isoformat("T") + "Z"
     elif option == "최근 1주일":
