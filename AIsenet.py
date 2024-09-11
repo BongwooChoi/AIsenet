@@ -148,19 +148,22 @@ def get_published_after(option):
     korea_tz = ZoneInfo("Asia/Seoul")
     today = datetime.now(korea_tz)
     if option == "최근 1일":
-        return (today - timedelta(days=1)).isoformat()
+        delta = timedelta(days=1)
     elif option == "최근 1주일":
-        return (today - timedelta(weeks=1)).isoformat()
+        delta = timedelta(weeks=1)
     elif option == "최근 1개월":
-        return (today - timedelta(weeks=4)).isoformat()
+        delta = timedelta(weeks=4)
     elif option == "최근 3개월":
-        return (today - timedelta(weeks=12)).isoformat()
+        delta = timedelta(weeks=12)
     elif option == "최근 6개월":
-        return (today - timedelta(weeks=24)).isoformat()
+        delta = timedelta(weeks=24)
     elif option == "최근 1년":
-        return (today - timedelta(weeks=52)).isoformat()
+        delta = timedelta(weeks=52)
     else:
-        return None  # 이 경우 조회 기간 필터를 사용하지 않음
+        return None
+    
+    past_date = today - delta
+    return past_date.strftime("%Y-%m-%d")
 
 # 자막 가져오기 함수 (YouTube Transcript API 사용)
 def get_video_transcript(video_id):
