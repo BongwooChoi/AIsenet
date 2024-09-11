@@ -149,17 +149,17 @@ KST = timezone(timedelta(hours=9))
 def get_published_after(option):
     today = datetime.now(KST)  # 현재 시간을 한국 시간대로 설정
     if option == "최근 1일":
-        return (today - timedelta(days=1)).isoformat("T") + "Z"
+        return (today - timedelta(days=1)).replace(microsecond=0).isoformat() + "Z"
     elif option == "최근 1주일":
-        return (today - timedelta(weeks=1)).isoformat("T") + "Z"
+        return (today - timedelta(weeks=1)).replace(microsecond=0).isoformat() + "Z"
     elif option == "최근 1개월":
-        return (today - timedelta(weeks=4)).isoformat("T") + "Z"
+        return (today - timedelta(weeks=4)).replace(microsecond=0).isoformat() + "Z"
     elif option == "최근 3개월":
-        return (today - timedelta(weeks=12)).isoformat("T") + "Z"
+        return (today - timedelta(weeks=12)).replace(microsecond=0).isoformat() + "Z"
     elif option == "최근 6개월":
-        return (today - timedelta(weeks=24)).isoformat("T") + "Z"
+        return (today - timedelta(weeks=24)).replace(microsecond=0).isoformat() + "Z"
     elif option == "최근 1년":
-        return (today - timedelta(weeks=52)).isoformat("T") + "Z"
+        return (today - timedelta(weeks=52)).replace(microsecond=0).isoformat() + "Z"
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
