@@ -145,9 +145,9 @@ def search_financial_info(stock_symbol):
 # 한국 시간대를 위한 UTC+9 시간대 설정
 KST = timezone(timedelta(hours=9))
 
-# 조회 기간 선택 함수
+# 조회 기간 선택 함수 (UTC로 변환)
 def get_published_after(option):
-    today = datetime.now(KST)  # 현재 시간을 한국 시간대로 설정
+    today = datetime.now(KST).astimezone(timezone.utc)  # 현재 시간을 UTC로 변환
     if option == "최근 1일":
         return (today - timedelta(days=1)).replace(microsecond=0).isoformat() + "Z"
     elif option == "최근 1주일":
