@@ -4,6 +4,7 @@ from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
 import os
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 import requests
 import urllib.parse
 import pandas as pd
@@ -144,19 +145,20 @@ def search_financial_info(stock_symbol):
 
 # 조회 기간 선택 함수
 def get_published_after(option):
-    today = datetime.utcnow()
+    korea_tz = ZoneInfo("Asia/Seoul")
+    today = datetime.now(korea_tz)
     if option == "최근 1일":
-        return (today - timedelta(days=1)).isoformat("T") + "Z"
+        return (today - timedelta(days=1)).isoformat()
     elif option == "최근 1주일":
-        return (today - timedelta(weeks=1)).isoformat("T") + "Z"
+        return (today - timedelta(weeks=1)).isoformat()
     elif option == "최근 1개월":
-        return (today - timedelta(weeks=4)).isoformat("T") + "Z"
+        return (today - timedelta(weeks=4)).isoformat()
     elif option == "최근 3개월":
-        return (today - timedelta(weeks=12)).isoformat("T") + "Z"
+        return (today - timedelta(weeks=12)).isoformat()
     elif option == "최근 6개월":
-        return (today - timedelta(weeks=24)).isoformat("T") + "Z"
+        return (today - timedelta(weeks=24)).isoformat()
     elif option == "최근 1년":
-        return (today - timedelta(weeks=52)).isoformat("T") + "Z"
+        return (today - timedelta(weeks=52)).isoformat()
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
