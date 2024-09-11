@@ -6,4 +6,4 @@ requests
 plotly
 yfinance
 pandas
-beautifulsoup4
+zoneinfo
