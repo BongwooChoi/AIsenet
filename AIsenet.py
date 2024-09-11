@@ -419,6 +419,25 @@ if source == "YouTube":
 
 elif source == "뉴스":
     st.subheader(f"📰 검색된 뉴스 기사")
+    
+    # 뉴스 종합 분석 요청 버튼 추가
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.write(f"총 {st.session_state.total_results}개의 뉴스 기사를 찾았습니다.")
+    with col2:
+        if st.button("📋 뉴스 종합 분석 요청청"):
+            with st.spinner("뉴스 기사를 종합 분석 중입니다..."):
+                st.session_state.summary = analyze_news_articles(st.session_state.search_results['news'])
+    
+    for i, article in enumerate(st.session_state.search_results['news']):
+        st.subheader(article['title'])
+        st.markdown(f"**출처:** {article['source']['name']}")
+        st.write(article['description'])
+        st.markdown(f"[기사 보기]({article['url']})")
+        st.divider()
+
+elif source == "뉴스":
+    st.subheader(f"📰 검색된 뉴스 기사")
     for i, article in enumerate(st.session_state.search_results['news']):
         st.subheader(article['title'])
         st.markdown(f"**출처:** {article['source']['name']}")
