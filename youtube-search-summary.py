@@ -168,16 +168,51 @@ def get_video_transcript(video_id):
     except Exception as e:
         return None
 
+# 비디오 설명 가져오기 함수
+def get_video_description(video_id):
+    try:
+        request = youtube.videos().list(
+            part="snippet",
+            id=video_id
+        )
+        response = request.execute()
+        return response['items'][0]['snippet']['description'] if response['items'] else None
+    except Exception as e:
+        st.error(f"비디오 설명을 가져오는 중 오류 발생: {str(e)}")
+        return None
 
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
     try:
         transcript = get_video_transcript(video_id)
+        
         if not transcript:
-            return "자막을 가져올 수 없어 요약할 수 없습니다."
+            # 자막이 없는 경우에만 비디오 설명 가져오기
+            description = get_video_description(video_id)
+            if not description:
+                return "비디오 정보를 가져올 수 없어 요약할 수 없습니다."
+        else:
+            description = None
 
         model = genai.GenerativeModel('gemini-1.5-pro')
-        prompt = f"다음 YouTube 영상의 제목과 내용을 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 나와야 합니다. 영상 제목에 지시대명사 같은 표현이 있는 경우 이런 표현이 구체적으로 어떤 것을 의미하는 것인지 파악해서 보고서에 포함해주세요.:\n\n제목: {video_title}\n\n{transcript}"
+        
+        content = f"제목: {video_title}\n\n"
+        
+        if transcript:
+            content += f"자막 내용:\n{transcript}\n\n"
+        elif description:
+            content += f"비디오 설명:\n{description}\n\n"
+
+        prompt = f"""다음 YouTube 영상의 정보를 바탕으로 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 작성해주세요. 자막이 없는 경우, 비디오 설명을 기반으로 내용을 추론해주세요.
+
+보고서 구조:
+1. 영상 개요 (제목 분석)
+2. 주요 내용 요약
+3. 결론 및 시사점
+
+영상 정보:
+{content}"""
+
         response = model.generate_content(prompt)
 
         if not response or not response.parts:
