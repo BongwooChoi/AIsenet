@@ -144,7 +144,7 @@ def search_financial_info(stock_symbol):
 
 # 조회 기간 선택 함수
 def get_published_after(option):
-    today = datetime.utcnow()
+    today = datetime.utcnow() + timedelta(hours=9)  # UTC 시간을 KST로 변환 (+9시간)
     if option == "최근 1일":
         return (today - timedelta(days=1)).isoformat("T") + "Z"
     elif option == "최근 1주일":
