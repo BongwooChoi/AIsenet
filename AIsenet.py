@@ -43,9 +43,18 @@ MAJOR_STOCKS = [
     "McDonald's Corporation (MCD)"
 ]
 
+# 전역 변수로 현재 사용 중인 API 키 인덱스 추적
+current_api_key_index = 0
+
 # 뉴스 검색 함수 (Serp API 사용)
 def search_news(domain, additional_query, published_after, max_results=10):
-    api_key = st.secrets["SERP_API_KEY"]
+    global current_api_key_index
+    
+    # API 키 번갈아 사용
+    api_keys = [st.secrets["SERP_API_KEY1"], st.secrets["SERP_API_KEY2"]]
+    api_key = api_keys[current_api_key_index]
+    current_api_key_index = (current_api_key_index + 1) % len(api_keys)
+    
     keywords = " OR ".join(FINANCE_DOMAINS[domain])
     
     if additional_query:
