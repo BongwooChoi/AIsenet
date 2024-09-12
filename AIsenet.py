@@ -2,6 +2,8 @@ import streamlit as st
 import google.generativeai as genai
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
+import json
 import os
 from datetime import datetime, timedelta
 import requests
@@ -169,13 +171,35 @@ def get_published_after(option):
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
-# 자막 가져오기 함수 (YouTube Transcript API 사용)
+# 자막 가져오기 함수
 def get_video_transcript(video_id):
+    # 방법 1: YouTube Transcript API 사용
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
         return ' '.join([entry['text'] for entry in transcript])
-    except Exception as e:
-        return None
+    except (TranscriptsDisabled, NoTranscriptFound):
+        pass
+    except Exception:
+        pass
+
+    # 방법 2: YouTube Data API를 통한 자막 트랙 정보 가져오기
+    try:
+        YOUTUBE_API_KEY = st.secrets["YOUTUBE_API_KEY"]
+        captions_url = f"https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId={video_id}&key={YOUTUBE_API_KEY}"
+        response = requests.get(captions_url)
+        captions_data = json.loads(response.text)
+        
+        if 'items' in captions_data and captions_data['items']:
+            caption_id = captions_data['items'][0]['id']
+            caption_url = f"https://www.googleapis.com/youtube/v3/captions/{caption_id}?key={YOUR_API_KEY}"
+            caption_response = requests.get(caption_url)
+            caption_content = caption_response.text
+            return caption_content
+    except Exception:
+        pass
+
+    # 모든 방법이 실패한 경우
+    return None
 
 # 비디오 설명 가져오기 함수
 def get_video_description(video_id):
