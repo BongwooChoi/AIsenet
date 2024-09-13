@@ -208,7 +208,7 @@ def get_video_transcript(video_id):
         transcript_text = transcript.fetch()
         return ' '.join([entry['text'] for entry in transcript_text])
     except Exception as e:
-        st.error(f"자막을 가져오는 중 오류 발생: {str(e)}")
+        st.write("자막을 가져올 수 없어 영상 설명과 댓글을 분석합니다.")
         return None
 
 # 비디오 설명과 댓글 정보 가져오기 함수
