@@ -230,7 +230,7 @@ def get_video_info(video_id):
             part="snippet",
             videoId=video_id,
             textFormat="plainText",
-            maxResults=50  # 상위 50개 댓글 가져오기
+            maxResults=20  # 상위 20개 댓글 가져오기
         )
         comments_response = comments_request.execute()
         comments = [item['snippet']['topLevelComment']['snippet']['textDisplay'] for item in comments_response['items']]
