@@ -273,6 +273,7 @@ def summarize_video(video_id, video_title):
         return summary
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
+        
 # 뉴스 기사 종합 분석 함수
 def analyze_news_articles(articles):
     try:
