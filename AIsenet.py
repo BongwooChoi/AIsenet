@@ -182,33 +182,9 @@ def get_published_after(option):
 # 자막 가져오기 함수
 def get_video_transcript(video_id):
     try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-        
-        # 수동으로 업로드된 한국어 자막 시도
-        try:
-            transcript = transcript_list.find_transcript(['ko'])
-        except NoTranscriptFound:
-            # 자동 생성된 한국어 자막 시도
-            try:
-                transcript = transcript_list.find_generated_transcript(['ko'])
-            except NoTranscriptFound:
-                # 수동으로 업로드된 영어 자막 시도
-                try:
-                    transcript = transcript_list.find_transcript(['en'])
-                except NoTranscriptFound:
-                    # 자동 생성된 영어 자막 시도
-                    try:
-                        transcript = transcript_list.find_generated_transcript(['en'])
-                        # 필요 시 한국어로 번역
-                        transcript = transcript.translate('ko')
-                    except NoTranscriptFound:
-                        return None  # 자막을 찾을 수 없음
-        
-        # 자막 텍스트 가져오기
-        transcript_text = transcript.fetch()
-        return ' '.join([entry['text'] for entry in transcript_text])
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
+        return ' '.join([entry['text'] for entry in transcript])
     except Exception as e:
-        st.write("자막을 가져올 수 없어 영상 설명과 댓글을 분석합니다.")
         return None
 
 # 비디오 설명과 댓글 정보 가져오기 함수
