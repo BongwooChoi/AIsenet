@@ -17,7 +17,12 @@ st.set_page_config(page_title="금융 AI 서비스 플랫폼 AIsenet", page_icon
 
 # API 키 설정
 genai.configure(api_key=st.secrets["GOOGLE_AI_STUDIO_API_KEY"])
-youtube = build('youtube', 'v3', developerKey=st.secrets["YOUTUBE_API_KEY"])
+YOUTUBE_API_KEYS = [
+    st.secrets["YOUTUBE_API_KEY1"],
+    st.secrets["YOUTUBE_API_KEY2"],
+    st.secrets["YOUTUBE_API_KEY3"],
+    st.secrets["YOUTUBE_API_KEY4"]
+]
 
 # 금융 도메인별 키워드 정의
 FINANCE_DOMAINS = {
@@ -95,6 +100,8 @@ def search_news(domain, additional_query, published_after, max_results=10):
 # YouTube 검색 함수
 def search_videos_with_transcript(domain, additional_query, published_after, max_results=10):
     try:
+        YOUTUBE_API_KEY = random.choice(YOUTUBE_API_KEYS)
+        youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
         keywords = " OR ".join(FINANCE_DOMAINS[domain])
         query = f"({keywords}) {additional_query}".strip()
         
@@ -184,14 +191,14 @@ def get_video_transcript(video_id):
 
     # 방법 2: YouTube Data API를 통한 자막 트랙 정보 가져오기
     try:
-        YOUTUBE_API_KEY = st.secrets["YOUTUBE_API_KEY"]
+        YOUTUBE_API_KEY = random.choice(YOUTUBE_API_KEYS)
         captions_url = f"https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId={video_id}&key={YOUTUBE_API_KEY}"
         response = requests.get(captions_url)
         captions_data = json.loads(response.text)
         
         if 'items' in captions_data and captions_data['items']:
             caption_id = captions_data['items'][0]['id']
-            caption_url = f"https://www.googleapis.com/youtube/v3/captions/{caption_id}?key={YOUR_API_KEY}"
+            caption_url = f"https://www.googleapis.com/youtube/v3/captions/{caption_id}?key={YOUTUBE_API_KEY}"
             caption_response = requests.get(caption_url)
             caption_content = caption_response.text
             return caption_content
