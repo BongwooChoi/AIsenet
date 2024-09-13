@@ -181,22 +181,34 @@ def get_published_after(option):
 
 # 자막 가져오기 함수
 def get_video_transcript(video_id):
-    # YouTube Transcript API 사용
     try:
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-        # 한국어 자막 우선 시도
-        if transcript_list.find_transcript(['ko']):
-            transcript = transcript_list.find_transcript(['ko']).fetch()
-        # 영어 자막 시도
-        elif transcript_list.find_transcript(['en']):
-            transcript = transcript_list.find_transcript(['en']).fetch()
-        else:
-            transcript = transcript_list.find_transcript(['en']).translate('ko').fetch()
-        return ' '.join([entry['text'] for entry in transcript])
-    except (TranscriptsDisabled, NoTranscriptFound, VideoUnavailable):
-        return None
+        
+        # 수동으로 업로드된 한국어 자막 시도
+        try:
+            transcript = transcript_list.find_transcript(['ko'])
+        except NoTranscriptFound:
+            # 자동 생성된 한국어 자막 시도
+            try:
+                transcript = transcript_list.find_generated_transcript(['ko'])
+            except NoTranscriptFound:
+                # 수동으로 업로드된 영어 자막 시도
+                try:
+                    transcript = transcript_list.find_transcript(['en'])
+                except NoTranscriptFound:
+                    # 자동 생성된 영어 자막 시도
+                    try:
+                        transcript = transcript_list.find_generated_transcript(['en'])
+                        # 필요 시 한국어로 번역
+                        transcript = transcript.translate('ko')
+                    except NoTranscriptFound:
+                        return None  # 자막을 찾을 수 없음
+        
+        # 자막 텍스트 가져오기
+        transcript_text = transcript.fetch()
+        return ' '.join([entry['text'] for entry in transcript_text])
     except Exception as e:
-        # st.error(f"자막을 가져오는 중 오류 발생: {str(e)}")
+        st.error(f"자막을 가져오는 중 오류 발생: {str(e)}")
         return None
 
 # 비디오 설명과 댓글 정보 가져오기 함수
