@@ -199,68 +199,84 @@ def get_video_transcript(video_id):
         # st.error(f"자막을 가져오는 중 오류 발생: {str(e)}")
         return None
 
-# 비디오 설명 가져오기 함수
-def get_video_description(video_id):
+# 비디오 설명과 댓글 정보 가져오기 함수
+def get_video_info(video_id):
     try:
         YOUTUBE_API_KEY = random.choice(YOUTUBE_API_KEYS)
         youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
-        request = youtube.videos().list(
+        
+        # 비디오 설명 가져오기
+        video_request = youtube.videos().list(
             part="snippet",
             id=video_id
         )
-        response = request.execute()
-        return response['items'][0]['snippet']['description'] if response['items'] else None
+        video_response = video_request.execute()
+        description = video_response['items'][0]['snippet']['description'] if video_response['items'] else None
+        
+        # 댓글 가져오기
+        comments_request = youtube.commentThreads().list(
+            part="snippet",
+            videoId=video_id,
+            textFormat="plainText",
+            maxResults=20  # 상위 20개 댓글 가져오기
+        )
+        comments_response = comments_request.execute()
+        comments = [item['snippet']['topLevelComment']['snippet']['textDisplay'] for item in comments_response['items']]
+        
+        return {
+            'description': description,
+            'comments': comments
+        }
     except Exception as e:
-        st.error(f"비디오 설명을 가져오는 중 오류 발생: {str(e)}")
+        st.error(f"비디오 정보를 가져오는 중 오류 발생: {str(e)}")
         return None
 
-# YouTube 영상 요약 함수
+# YouTube 영상 요약 함수 (수정됨)
 def summarize_video(video_id, video_title):
     try:
         transcript = get_video_transcript(video_id)
+        video_info = get_video_info(video_id)
         
-        if not transcript:
-            # 자막이 없는 경우에만 비디오 설명 가져오기
-            description = get_video_description(video_id)
-            if not description:
-                return "비디오 정보를 가져올 수 없어 요약할 수 없습니다."
-        else:
-            description = None
-
-        model = genai.GenerativeModel('gemini-1.5-pro')
+        if not transcript and not video_info:
+            return "비디오 정보를 가져올 수 없어 요약할 수 없습니다."
+        
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         content = f"제목: {video_title}\n\n"
         
         if transcript:
             content += f"자막 내용:\n{transcript}\n\n"
-        elif description:
-            content += f"비디오 설명:\n{description}\n\n"
-
-        prompt = f"""다음 YouTube 영상의 정보를 바탕으로 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 작성해주세요. 자막이 없는 경우, 비디오 설명을 기반으로 내용을 추론해주세요.
-
+        
+        if video_info:
+            if video_info['description']:
+                content += f"비디오 설명:\n{video_info['description']}\n\n"
+            
+            if video_info['comments']:
+                content += "주요 댓글:\n"
+                for comment in video_info['comments']:
+                    content += f"- {comment}\n"
+                content += "\n"
+        
+        prompt = f"""다음 YouTube 영상의 정보를 바탕으로 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 작성해주세요. 자막이 없는 경우, 비디오 설명과 댓글을 기반으로 내용을 추론해주세요.
 보고서 구조:
 1. 영상 개요
 2. 주요 내용 요약
-3. 결론 및 시사점
-
+3. 시청자 반응 (댓글 기반)
+4. 결론 및 시사점
 영상 정보:
 {content}"""
-
         response = model.generate_content(prompt)
-
         if not response or not response.parts:
             feedback = response.prompt_feedback if response else "No response received."
             return f"요약 중 오류가 발생했습니다: {feedback}"
-
         summary = response.text
         return summary
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
-
 # 뉴스 기사 종합 분석 함수
 def analyze_news_articles(articles):
     try:
-        model = genai.GenerativeModel('gemini-1.5-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         # 모든 기사의 제목과 내용을 하나의 문자열로 결합
         all_articles = "\n\n".join([f"제목: {article['title']}\n내용: {article['content']}" for article in articles])
@@ -292,7 +308,7 @@ def analyze_news_articles(articles):
 # 재무정보 분석
 def analyze_financial_info(financial_data, stock_symbol, stock_name):
     try:
-        model = genai.GenerativeModel('gemini-1.5-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         # 재무 데이터를 문자열로 변환
         financial_info = ""
