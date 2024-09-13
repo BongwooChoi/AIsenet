@@ -11,6 +11,7 @@ import urllib.parse
 import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
+import random
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="금융 AI 서비스 플랫폼 AIsenet", page_icon="🤖", layout="wide")
@@ -211,6 +212,8 @@ def get_video_transcript(video_id):
 # 비디오 설명 가져오기 함수
 def get_video_description(video_id):
     try:
+        YOUTUBE_API_KEY = random.choice(YOUTUBE_API_KEYS)
+        youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
         request = youtube.videos().list(
             part="snippet",
             id=video_id
