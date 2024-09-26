@@ -228,7 +228,7 @@ def summarize_video(video_id, video_title):
         if not transcript and not video_info:
             return "비디오 정보를 가져올 수 없어 요약할 수 없습니다."
         
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash-002')
         
         content = f"제목: {video_title}\n\n"
         
@@ -265,7 +265,7 @@ def summarize_video(video_id, video_title):
 # 뉴스 기사 종합 분석 함수
 def analyze_news_articles(articles):
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash-002')
         
         # 모든 기사의 제목과 내용을 하나의 문자열로 결합
         all_articles = "\n\n".join([f"제목: {article['title']}\n내용: {article['content']}" for article in articles])
@@ -297,7 +297,7 @@ def analyze_news_articles(articles):
 # 재무정보 분석
 def analyze_financial_info(financial_data, stock_symbol, stock_name):
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash-002')
         
         # 재무 데이터를 문자열로 변환
         financial_info = ""
