@@ -219,8 +219,7 @@ def get_video_info(video_id):
         st.error(f"비디오 정보를 가져오는 중 오류 발생: {str(e)}")
         return None
 
-
-# YouTube 영상 요약 함수
+# YouTube 영상 요약 함수 (수정됨)
 def summarize_video(video_id, video_title):
     try:
         transcript = get_video_transcript(video_id)
@@ -246,8 +245,6 @@ def summarize_video(video_id, video_title):
                     content += f"- {comment}\n"
                 content += "\n"
         
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
-        
         prompt = f"""다음 YouTube 영상의 정보를 바탕으로 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 작성해주세요. 자막이 없는 경우, 비디오 설명과 댓글을 기반으로 내용을 추론해주세요.
 보고서 구조:
 1. 영상 개요
@@ -255,9 +252,7 @@ def summarize_video(video_id, video_title):
 3. 시청자 반응 (댓글 기반)
 4. 결론 및 시사점
 영상 정보:
-{content}
-영상 URL: {video_url}"""
-
+{content}"""
         response = model.generate_content(prompt)
         if not response or not response.parts:
             feedback = response.prompt_feedback if response else "No response received."
@@ -266,7 +261,6 @@ def summarize_video(video_id, video_title):
         return summary
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
-
         
 # 뉴스 기사 종합 분석 함수
 def analyze_news_articles(articles):
