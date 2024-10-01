@@ -231,11 +231,15 @@ def get_video_info(video_id):
         st.error(f"비디오 정보를 가져오는 중 오류 발생: {str(e)}")
         return None
 
-# YouTube 영상 요약 함수 (수정됨)
+# YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
     try:
         transcript = get_video_transcript(video_id)
-        video_info = get_video_info(video_id)
+        
+        if not transcript:
+            video_info = get_video_info(video_id)
+        else:
+            video_info = None
         
         if not transcript and not video_info:
             return "비디오 정보를 가져올 수 없어 요약할 수 없습니다."
@@ -248,10 +252,10 @@ def summarize_video(video_id, video_title):
             content += f"자막 내용:\n{transcript}\n\n"
         
         if video_info:
-            if video_info['description']:
+            if video_info.get('description'):
                 content += f"비디오 설명:\n{video_info['description']}\n\n"
             
-            if video_info['comments']:
+            if video_info.get('comments'):
                 content += "주요 댓글:\n"
                 for comment in video_info['comments']:
                     content += f"- {comment}\n"
@@ -273,7 +277,8 @@ def summarize_video(video_id, video_title):
         return summary
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
-        
+
+
 # 뉴스 기사 종합 분석 함수
 def analyze_news_articles(articles):
     try:
