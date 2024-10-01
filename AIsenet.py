@@ -184,17 +184,18 @@ def get_published_after(option):
 
 # 자막 가져오기 함수
 def get_video_transcript(video_id):
-    video_url = f"https://youtu.be/{video_id}"
+    video_url = f"https://www.youtube.com/watch?v={video_id}"
     try:
         run_input = {
             "startUrls": [video_url]
         }
         run = apify_client.actor("topaz_sharingan/Youtube-Transcript-Scraper-1").call(run_input=run_input)
         for item in apify_client.dataset(run["defaultDatasetId"]).iterate_items():
-            if item.get("transcript"):
-                return ' '.join([entry['text'] for entry in item["transcript"]])
-                return transcript
-    except Exception:
+            if isinstance(item, list) and len(item) > 0:
+                first_item = item[0]
+                if first_item.get("transcript"):
+                    return first_item["transcript"]
+    except Exception as e:
         pass
 
     return None
