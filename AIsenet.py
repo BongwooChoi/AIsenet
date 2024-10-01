@@ -218,7 +218,7 @@ def get_video_info(video_id):
             part="snippet",
             videoId=video_id,
             textFormat="plainText",
-            maxResults=100  # 상위 100개 댓글 가져오기
+            maxResults=30  # 상위 30개 댓글 가져오기
         )
         comments_response = comments_request.execute()
         comments = [item['snippet']['topLevelComment']['snippet']['textDisplay'] for item in comments_response['items']]
@@ -235,11 +235,7 @@ def get_video_info(video_id):
 def summarize_video(video_id, video_title):
     try:
         transcript = get_video_transcript(video_id)
-        
-        if not transcript:
-            video_info = get_video_info(video_id)
-        else:
-            video_info = None
+        video_info = get_video_info(video_id)
         
         if not transcript and not video_info:
             return "비디오 정보를 가져올 수 없어 요약할 수 없습니다."
