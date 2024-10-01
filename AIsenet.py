@@ -12,6 +12,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import yfinance as yf
 import random
+from apify_client import ApifyClient
 
 # Streamlit 앱 설정
 st.set_page_config(page_title="금융 AI 서비스 플랫폼 AIsenet", page_icon="🤖", layout="wide")
@@ -24,6 +25,8 @@ YOUTUBE_API_KEYS = [
     st.secrets["YOUTUBE_API_KEY3"],
     st.secrets["YOUTUBE_API_KEY4"]
 ]
+APIFY_API_KEY = st.secrets["APIFY_API_KEY"]
+apify_client = ApifyClient(APIFY_API_KEY)
 
 # 금융 도메인별 키워드 정의
 FINANCE_DOMAINS = {
@@ -181,11 +184,33 @@ def get_published_after(option):
 
 # 자막 가져오기 함수
 def get_video_transcript(video_id):
+    # 1차: karamelo/youtube-transcripts 사용
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
-        return ' '.join([entry['text'] for entry in transcript])
-    except Exception as e:
-        return None
+        run_input = {
+            "videoUrl": f"https://www.youtube.com/watch?v={video_id}",
+            "languagesToDownload": ["ko", "en"]
+        }
+        run = apify_client.actor("karamelo/youtube-transcripts").call(run_input=run_input)
+        for item in apify_client.dataset(run["defaultDatasetId"]).iterate_items():
+            if item.get("text"):
+                return ' '.join(item["text"])
+    except Exception:
+        pass
+
+    # 2차: topaz_sharingan/Youtube-Transcript-Scraper-1 사용
+    try:
+        run_input = {
+            "videoId": video_id,
+            "language": ["ko", "en"]
+        }
+        run = apify_client.actor("topaz_sharingan/Youtube-Transcript-Scraper-1").call(run_input=run_input)
+        for item in apify_client.dataset(run["defaultDatasetId"]).iterate_items():
+            if item.get("transcript"):
+                return ' '.join([entry['text'] for entry in item["transcript"]])
+    except Exception:
+        pass
+
+    return None
 
 # 비디오 설명과 댓글 정보 가져오기 함수
 def get_video_info(video_id):
