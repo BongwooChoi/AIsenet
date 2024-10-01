@@ -184,6 +184,16 @@ def get_published_after(option):
 
 # 자막 가져오기 함수
 def get_video_transcript(video_id):
+    try:
+        # 1. youtube-transcript-api를 사용하여 자막 가져오기 시도
+        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
+        transcript_text = ' '.join([entry['text'] for entry in transcript_list])
+        return transcript_text
+    except (TranscriptsDisabled, NoTranscriptFound):
+        # 자막이 없거나 비활성화된 경우 Apify 사용
+        pass
+
+    # 2. Apify를 사용하여 자막 가져오기 시도
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     try:
         run_input = {
