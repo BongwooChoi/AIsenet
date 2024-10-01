@@ -196,7 +196,7 @@ def get_video_transcript(video_id):
             if item.get("text"):
                 return ' '.join(item["text"])
     except Exception:
-        pass
+        pass  # karamelo/youtube-transcripts 실패 시 다음 단계로
 
     # 2차: topaz_sharingan/Youtube-Transcript-Scraper-1 사용
     try:
@@ -211,6 +211,14 @@ def get_video_transcript(video_id):
         pass
 
     return None
+
+def debug_transcript(video_id):
+    transcript = get_video_transcript(video_id)
+    print(f"Transcript for video {video_id}:")
+    print(transcript if transcript else "No transcript found.")
+    return transcript
+
+
 
 # 비디오 설명과 댓글 정보 가져오기 함수
 def get_video_info(video_id):
