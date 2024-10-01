@@ -191,10 +191,8 @@ def get_video_transcript(video_id):
         }
         run = apify_client.actor("topaz_sharingan/Youtube-Transcript-Scraper-1").call(run_input=run_input)
         for item in apify_client.dataset(run["defaultDatasetId"]).iterate_items():
-            if isinstance(item, list) and len(item) > 0:
-                first_item = item[0]
-                if first_item.get("transcript"):
-                    return first_item["transcript"]
+            if item.get("transcript"):
+                return item["transcript"]
     except Exception as e:
         pass
 
