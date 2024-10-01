@@ -185,20 +185,6 @@ def get_published_after(option):
 # 자막 가져오기 함수
 def get_video_transcript(video_id):
     video_url = f"https://youtu.be/{video_id}"
-    
-    # 1차: karamelo/youtube-transcripts 사용
-    try:
-        run_input = {
-            "urls": [video_url]
-        }
-        run = apify_client.actor("karamelo/youtube-transcripts").call(run_input=run_input)
-        for item in apify_client.dataset(run["defaultDatasetId"]).iterate_items():
-            if item.get("text"):
-                return ' '.join(item["text"])
-    except Exception:
-        pass  # karamelo/youtube-transcripts 실패 시 다음 단계로
-
-    # 2차: topaz_sharingan/Youtube-Transcript-Scraper-1 사용
     try:
         run_input = {
             "startUrls": [video_url]
@@ -207,17 +193,11 @@ def get_video_transcript(video_id):
         for item in apify_client.dataset(run["defaultDatasetId"]).iterate_items():
             if item.get("transcript"):
                 return ' '.join([entry['text'] for entry in item["transcript"]])
+                return transcript
     except Exception:
         pass
 
     return None
-
-def debug_transcript(video_id):
-    transcript = get_video_transcript(video_id)
-    print(f"Transcript for video {video_id}:")
-    print(transcript if transcript else "No transcript found.")
-    return transcript
-
 
 
 # 비디오 설명과 댓글 정보 가져오기 함수
