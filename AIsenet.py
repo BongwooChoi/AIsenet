@@ -401,6 +401,14 @@ def download_summary_file(summary_text, file_name="summary.txt"):
 st.markdown('<h1>🤖 금융 AI 서비스 플랫폼 <span style="color:red">AI</span>senet</h1>', unsafe_allow_html=True)
 st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영상, 뉴스, 그리고 주식 재무정보를 검색하고 AI를 이용해 분석 정보를 제공합니다. 좌측 사이드바에서 검색 조건을 선택하고 검색해보세요.")
 
+# 세션 상태 초기화
+if 'search_executed' not in st.session_state:
+    st.session_state['search_executed'] = False
+
+# 검색이 실행되지 않았을 때만 이미지 표시
+if not st.session_state['search_executed']:
+    st.image("https://github.com/BongwooChoi/AIsenet/blob/main/cover.jpg")
+
 # 사이드바에 검색 조건 배치
 with st.sidebar:
     st.header("검색 조건")
@@ -429,6 +437,7 @@ if 'summary' not in st.session_state:
 
 # 검색 실행
 if search_button:
+    st.session_state['search_executed'] = True  # 검색이 실행되었음을 표시
     if source in ["YouTube", "뉴스"]:
         with st.spinner(f"{source}를 검색하고 있습니다..."):
             published_after = get_published_after(period)
@@ -478,60 +487,61 @@ if search_button:
                 st.warning(f"{stock_input}에 해당하는 종목을 찾을 수 없습니다.")
 
 # 검색 결과 표시
-if source == "YouTube":
-    st.subheader(f"🎦 검색된 YouTube 영상")
-    for video in st.session_state.search_results['videos']:
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.image(video['snippet']['thumbnails']['medium']['url'], use_column_width=True)
-        with col2:
-            st.subheader(video['snippet']['title'])
-            st.markdown(f"**채널명:** {video['snippet']['channelTitle']}")
-            st.write(video['snippet']['description'])
-            video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
-            st.markdown(f"[영상 보기]({video_url})")
-            
-            video_id = video['id']['videoId']
-            video_title = video['snippet']['title']
-            if st.button(f"📋 요약 보고서 요청", key=f"summarize_{video_id}"):
-                with st.spinner("영상을 요약하는 중..."):
-                    summary = summarize_video(video_id, video_title)
-                    st.session_state.summary = summary
-        st.divider()
-
-elif source == "뉴스":
-    st.subheader(f"📰 검색된 뉴스 기사")
-    for i, article in enumerate(st.session_state.search_results['news']):
-        st.subheader(article['title'])
-        st.markdown(f"**출처:** {article['source']['name']}")
-        st.write(article['description'])
-        st.markdown(f"[기사 보기]({article['url']})")
-        st.divider()
-
-# 요약 결과 표시 및 다운로드 버튼
-st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
-col1, col2 = st.columns([0.85, 0.15])  # 열을 비율로 분할
-with col1:
+if st.session_state['search_executed']:
     if source == "YouTube":
-        st.subheader("📋 영상 요약 보고서")
+        st.subheader(f"🎦 검색된 YouTube 영상")
+        for video in st.session_state.search_results['videos']:
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                st.image(video['snippet']['thumbnails']['medium']['url'], use_column_width=True)
+            with col2:
+                st.subheader(video['snippet']['title'])
+                st.markdown(f"**채널명:** {video['snippet']['channelTitle']}")
+                st.write(video['snippet']['description'])
+                video_url = f"https://www.youtube.com/watch?v={video['id']['videoId']}"
+                st.markdown(f"[영상 보기]({video_url})")
+                
+                video_id = video['id']['videoId']
+                video_title = video['snippet']['title']
+                if st.button(f"📋 요약 보고서 요청", key=f"summarize_{video_id}"):
+                    with st.spinner("영상을 요약하는 중..."):
+                        summary = summarize_video(video_id, video_title)
+                        st.session_state.summary = summary
+            st.divider()
+    
     elif source == "뉴스":
-        st.subheader("📋 뉴스 종합 분석 보고서")
-    else:
-        st.subheader("📈 재무정보 분석 보고서")
-with col2:
+        st.subheader(f"📰 검색된 뉴스 기사")
+        for i, article in enumerate(st.session_state.search_results['news']):
+            st.subheader(article['title'])
+            st.markdown(f"**출처:** {article['source']['name']}")
+            st.write(article['description'])
+            st.markdown(f"[기사 보기]({article['url']})")
+            st.divider()
+    
+    # 요약 결과 표시 및 다운로드 버튼
+    st.markdown('<div class="fixed-footer">', unsafe_allow_html=True)
+    col1, col2 = st.columns([0.85, 0.15])  # 열을 비율로 분할
+    with col1:
+        if source == "YouTube":
+            st.subheader("📋 영상 요약 보고서")
+        elif source == "뉴스":
+            st.subheader("📋 뉴스 종합 분석 보고서")
+        else:
+            st.subheader("📈 재무정보 분석 보고서")
+    with col2:
+        if st.session_state.summary:
+            download_summary_file(st.session_state.summary)
+    
     if st.session_state.summary:
-        download_summary_file(st.session_state.summary)
-
-if st.session_state.summary:
-    st.markdown(st.session_state.summary, unsafe_allow_html=True)
-else:
-    if source == "YouTube":
-        st.write("검색 결과에서 요약할 영상을 선택하세요.")
-    elif source == "뉴스":
-        st.write("뉴스 검색 결과가 없습니다.")
+        st.markdown(st.session_state.summary, unsafe_allow_html=True)
     else:
-        st.write("재무정보 검색 결과가 없습니다.")
-st.markdown('</div>', unsafe_allow_html=True)
+        if source == "YouTube":
+            st.write("검색 결과에서 요약할 영상을 선택하세요.")
+        elif source == "뉴스":
+            st.write("뉴스 검색 결과가 없습니다.")
+        else:
+            st.write("재무정보 검색 결과가 없습니다.")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # 주의사항 및 안내
 st.sidebar.markdown("---")
