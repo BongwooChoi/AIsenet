@@ -407,7 +407,7 @@ if 'search_executed' not in st.session_state:
 
 # 검색이 실행되지 않았을 때만 이미지 표시
 if not st.session_state['search_executed']:
-    st.image("https://github.com/BongwooChoi/AIsenet/blob/main/cover.jpg")
+    st.image("https://raw.githubusercontent.com/BongwooChoi/AIsenet/main/cover.jpg")
 
 # 사이드바에 검색 조건 배치
 with st.sidebar:
