@@ -102,33 +102,49 @@ def search_news(domain, additional_query, published_after, max_results=10):
     return unique_articles
 
 # YouTube 검색 함수
-def search_videos_with_transcript(domain, additional_query, published_after, max_results=20):
+def search_videos_with_transcript(domain, additional_query, published_after, max_results=10):
     try:
         YOUTUBE_API_KEY = random.choice(YOUTUBE_API_KEYS)
         youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
         keywords = " OR ".join(FINANCE_DOMAINS[domain])
         query = f"({keywords}) {additional_query}".strip()
         
-        # st.write(f"검색 쿼리: {query}")  # 디버깅용 로그
-        
+        # maxResults를 늘려서 쇼츠를 제외한 후에도 충분한 결과를 얻도록 합니다.
         request = youtube.search().list(
             q=query,
             type='video',
             part='id,snippet',
             order='relevance',
             publishedAfter=published_after,
-            maxResults=max_results
+            maxResults=max_results * 2  # 필요에 따라 조절
         )
         response = request.execute()
 
         videos_with_transcript = []
-        for item in response['items']:
-            video_id = item['id']['videoId']
-            # if get_video_transcript(video_id):  # 자막 있는 영상만 필터링
-            videos_with_transcript.append(item)
+        video_ids = [item['id']['videoId'] for item in response['items']]
         
-        # st.write(f"자막이 있는 비디오 수: {len(videos_with_transcript)}")  # 디버깅용 로그
-        
+        # 각 영상의 상세 정보 가져오기 (길이 포함)
+        video_details_request = youtube.videos().list(
+            part='contentDetails',
+            id=','.join(video_ids)
+        )
+        video_details_response = video_details_request.execute()
+
+        for item in video_details_response['items']:
+            video_id = item['id']
+            duration = item['contentDetails']['duration']
+            # ISO 8601 형식의 duration을 초 단위로 변환
+            import isodate
+            duration_seconds = isodate.parse_duration(duration).total_seconds()
+            if duration_seconds >= 60:  # 60초 이상인 영상만 선택
+                # 원래의 response에서 해당 영상 정보 가져오기
+                video_item = next((v for v in response['items'] if v['id']['videoId'] == video_id), None)
+                if video_item:
+                    videos_with_transcript.append(video_item)
+            
+            if len(videos_with_transcript) >= max_results:
+                break
+
         return videos_with_transcript[:max_results], len(response['items'])
     except Exception as e:
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
