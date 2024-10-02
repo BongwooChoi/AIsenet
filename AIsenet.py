@@ -111,54 +111,46 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         
         # st.write(f"검색 쿼리: {query}")  # 디버깅용 로그
         
-        # medium 영상 검색
-        medium_request = youtube.search().list(
+        # maxResults를 늘려서 쇼츠를 제외한 후에도 충분한 결과를 얻도록 합니다.
+        request = youtube.search().list(
             q=query,
             type='video',
             part='id,snippet',
             order='relevance',
             publishedAfter=published_after,
-            maxResults=max_results,
-            videoDuration='medium'
+            maxResults=max_results * 2  # 필요에 따라 조절
         )
-        medium_response = medium_request.execute()
-        
-        # long 영상 검색
-        long_request = youtube.search().list(
-            q=query,
-            type='video',
-            part='id,snippet',
-            order='relevance',
-            publishedAfter=published_after,
-            maxResults=max_results,
-            videoDuration='long'
-        )
-        long_response = long_request.execute()
-        
-        # 두 결과를 결합
-        combined_items = medium_response['items'] + long_response['items']
-        
-        # 중복 제거 (영상 ID 기준)
-        video_ids = set()
-        unique_items = []
-        for item in combined_items:
-            video_id = item['id']['videoId']
-            if video_id not in video_ids:
-                video_ids.add(video_id)
-                unique_items.append(item)
-        
-        # 필요에 따라 자막이 있는 영상만 필터링
+        response = request.execute()
+
         videos_with_transcript = []
-        for item in unique_items:
-            video_id = item['id']['videoId']
-            # if get_video_transcript(video_id):  # 자막 있는 영상만 필터링
-            videos_with_transcript.append(item)
+        video_ids = [item['id']['videoId'] for item in response['items']]
+        
+        # 각 영상의 상세 정보 가져오기 (길이 포함)
+        video_details_request = youtube.videos().list(
+            part='contentDetails',
+            id=','.join(video_ids)
+        )
+        video_details_response = video_details_request.execute()
+
+        for item in video_details_response['items']:
+            video_id = item['id']
+            duration = item['contentDetails']['duration']
+            # ISO 8601 형식의 duration을 초 단위로 변환
+            import isodate
+            duration_seconds = isodate.parse_duration(duration).total_seconds()
+            if duration_seconds >= 60:  # 60초 이상인 영상만 선택
+                # 원래의 response에서 해당 영상 정보 가져오기
+                video_item = next((v for v in response['items'] if v['id']['videoId'] == video_id), None)
+                if video_item:
+                    # if get_video_transcript(video_id):  # 자막 있는 영상만 필터링
+                    videos_with_transcript.append(video_item)
+            
             if len(videos_with_transcript) >= max_results:
                 break
-        
+
         # st.write(f"자막이 있는 비디오 수: {len(videos_with_transcript)}")  # 디버깅용 로그
         
-        return videos_with_transcript[:max_results * 2], len(combined_items)
+        return videos_with_transcript[:max_results], len(response['items'])
     except Exception as e:
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
