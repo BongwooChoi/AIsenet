@@ -472,19 +472,19 @@ if not st.session_state['search_executed']:
 # 사이드바에 검색 조건 배치
 with st.sidebar:
     st.header("검색 조건")
-    st.session_state['source'] = st.radio("검색할 채널을 선택하세요:", ("YouTube", "뉴스", "재무정보"))
-    source = st.session_state['source']
+    source = st.radio("검색할 채널을 선택하세요:", ("YouTube", "뉴스", "재무정보"), key='source')
     if source in ["YouTube", "뉴스"]:
-        st.session_state['domain'] = st.selectbox("금융 도메인 선택", list(FINANCE_DOMAINS.keys()))
-        st.session_state['additional_query'] = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
-        st.session_state['period'] = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
+        domain = st.selectbox("금융 도메인 선택", list(FINANCE_DOMAINS.keys()), key='domain')
+        additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
+        period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2, key='period')
     else:
-        st.session_state['stock_input_method'] = st.radio("종목 선택 방법", ("목록에서 선택", "직접 입력"))
-        if st.session_state['stock_input_method'] == "목록에서 선택":
-            st.session_state['stock_selection'] = st.selectbox("종목 선택", MAJOR_STOCKS)
-            st.session_state['stock_input'] = st.session_state['stock_selection'].split('(')[1].split(')')[0]
+        stock_input_method = st.radio("종목 선택 방법", ("목록에서 선택", "직접 입력"), key='stock_input_method')
+        if stock_input_method == "목록에서 선택":
+            stock_selection = st.selectbox("종목 선택", MAJOR_STOCKS, key='stock_selection')
+            stock_input = stock_selection.split('(')[1].split(')')[0]
+            st.session_state['stock_input'] = stock_input  # 선택한 종목 코드를 세션 상태에 저장
         else:
-            st.session_state['stock_input'] = st.text_input("종목코드(티커) 직접 입력 (예: AAPL)")
+            stock_input = st.text_input("종목코드(티커) 직접 입력 (예: AAPL)", key='stock_input')
     st.button("검색 실행", on_click=execute_search)
 
 # 검색 결과 표시
