@@ -111,25 +111,54 @@ def search_videos_with_transcript(domain, additional_query, published_after, max
         
         # st.write(f"검색 쿼리: {query}")  # 디버깅용 로그
         
-        request = youtube.search().list(
+        # medium 영상 검색
+        medium_request = youtube.search().list(
             q=query,
             type='video',
             part='id,snippet',
             order='relevance',
             publishedAfter=published_after,
-            maxResults=max_results
+            maxResults=max_results,
+            videoDuration='medium'
         )
-        response = request.execute()
-
+        medium_response = medium_request.execute()
+        
+        # long 영상 검색
+        long_request = youtube.search().list(
+            q=query,
+            type='video',
+            part='id,snippet',
+            order='relevance',
+            publishedAfter=published_after,
+            maxResults=max_results,
+            videoDuration='long'
+        )
+        long_response = long_request.execute()
+        
+        # 두 결과를 결합
+        combined_items = medium_response['items'] + long_response['items']
+        
+        # 중복 제거 (영상 ID 기준)
+        video_ids = set()
+        unique_items = []
+        for item in combined_items:
+            video_id = item['id']['videoId']
+            if video_id not in video_ids:
+                video_ids.add(video_id)
+                unique_items.append(item)
+        
+        # 필요에 따라 자막이 있는 영상만 필터링
         videos_with_transcript = []
-        for item in response['items']:
+        for item in unique_items:
             video_id = item['id']['videoId']
             # if get_video_transcript(video_id):  # 자막 있는 영상만 필터링
             videos_with_transcript.append(item)
+            if len(videos_with_transcript) >= max_results:
+                break
         
         # st.write(f"자막이 있는 비디오 수: {len(videos_with_transcript)}")  # 디버깅용 로그
         
-        return videos_with_transcript[:max_results], len(response['items'])
+        return videos_with_transcript[:max_results * 2], len(combined_items)
     except Exception as e:
         st.error(f"YouTube 검색 중 오류 발생: {str(e)}")
         return [], 0
