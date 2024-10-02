@@ -375,62 +375,32 @@ def download_summary_file(summary_text, file_name="summary.txt"):
         mime="text/plain"
     )
 
-
-# Streamlit 앱
-st.markdown('<h1>🤖 금융 AI 서비스 플랫폼 <span style="color:red">AI</span>senet</h1>', unsafe_allow_html=True)
-st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영상, 뉴스, 그리고 주식 재무정보를 검색하고 AI를 이용해 분석 정보를 제공합니다. 좌측 사이드바에서 검색 조건을 선택하고 검색해보세요.")
-
-# 세션 상태 초기화
-if 'search_executed' not in st.session_state:
-    st.session_state['search_executed'] = False
-
-# 검색이 실행되지 않았을 때만 이미지 표시
-if not st.session_state['search_executed']:
-    st.image("https://raw.githubusercontent.com/BongwooChoi/AIsenet/main/cover.jpg")
-
-# 사이드바에 검색 조건 배치
-with st.sidebar:
-    st.header("검색 조건")
-    source = st.radio("검색할 채널을 선택하세요:", ("YouTube", "뉴스", "재무정보"))
+# 검색 실행 함수 정의
+def execute_search():
+    st.session_state['search_executed'] = True
+    source = st.session_state.get('source')
     if source in ["YouTube", "뉴스"]:
-        domain = st.selectbox("금융 도메인 선택", list(FINANCE_DOMAINS.keys()))
-        additional_query = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
-        period = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
-    else:
-        stock_input_method = st.radio("종목 선택 방법", ("목록에서 선택", "직접 입력"))
-        if stock_input_method == "목록에서 선택":
-            stock_selection = st.selectbox("종목 선택", MAJOR_STOCKS)
-            stock_input = stock_selection.split('(')[1].split(')')[0]  # 괄호 안의 종목 코드 추출
-        else:
-            stock_input = st.text_input("종목코드(티커) 직접 입력 (예: AAPL)")
-    search_button = st.button("검색 실행")
-
-# 검색 결과 저장용 세션 상태
-if 'search_results' not in st.session_state:
-    st.session_state.search_results = {'videos': [], 'news': [], 'financial_info': {}}
-    st.session_state.total_results = 0
-
-# 요약 결과 저장용 세션 상태
-if 'summary' not in st.session_state:
-    st.session_state.summary = ""
-
-# 검색 실행
-if search_button:
-    st.session_state['search_executed'] = True  # 검색이 실행되었음을 표시
-    if source in ["YouTube", "뉴스"]:
-        with st.spinner(f"{source}를 검색하고 있습니다..."):
-            published_after = get_published_after(period)
-            
-            if source == "YouTube":
-                # YouTube 영상 검색
-                videos, total_video_results = search_videos_with_transcript(domain, additional_query, published_after)
+        published_after = get_published_after(st.session_state['period'])
+        
+        if source == "YouTube":
+            # YouTube 영상 검색
+            with st.spinner(f"{source}를 검색하고 있습니다..."):
+                videos, total_video_results = search_videos_with_transcript(
+                    st.session_state['domain'], 
+                    st.session_state['additional_query'], 
+                    published_after)
                 st.session_state.search_results = {'videos': videos, 'news': [], 'financial_info': {}}
                 st.session_state.total_results = total_video_results
                 st.session_state.summary = ""  # YouTube 검색 시 요약 초기화
-            
-            elif source == "뉴스":
-                # 뉴스 검색 및 자동 분석
-                news_articles = search_news(domain, additional_query, published_after, max_results=10)
+        
+        elif source == "뉴스":
+            # 뉴스 검색 및 자동 분석
+            with st.spinner(f"{source}를 검색하고 있습니다..."):
+                news_articles = search_news(
+                    st.session_state['domain'], 
+                    st.session_state['additional_query'], 
+                    published_after, 
+                    max_results=10)
                 total_news_results = len(news_articles)
                 st.session_state.search_results = {'videos': [], 'news': news_articles, 'financial_info': {}}
                 st.session_state.total_results = total_news_results
@@ -438,12 +408,13 @@ if search_button:
                 # 뉴스 기사 자동 분석
                 with st.spinner("뉴스 기사를 종합 분석 중입니다..."):
                     st.session_state.summary = analyze_news_articles(news_articles)
-            
-            if not st.session_state.total_results:
-                st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 도메인이나 검색어로 검색해보세요.")
+        
+        if not st.session_state.total_results:
+            st.warning(f"{source}에서 결과를 찾을 수 없습니다. 다른 도메인이나 검색어로 검색해보세요.")
     
     elif source == "재무정보":
-        with st.spinner(f"{stock_input}의 재무정보를 검색하고 있습니다..."):
+        with st.spinner(f"{st.session_state['stock_input']}의 재무정보를 검색하고 있습니다..."):
+            stock_input = st.session_state['stock_input']
             stock_symbol = search_stock_symbol(stock_input) if not stock_input.isalpha() else stock_input
             if stock_symbol:
                 financial_info = search_financial_info(stock_symbol)
@@ -453,11 +424,11 @@ if search_button:
                 if financial_info:
                     with st.spinner("재무정보를 분석 중입니다..."):
                         # 종목명 결정
-                        if stock_input_method == "목록에서 선택":
-                            stock_name = stock_selection.split('(')[0].strip()  # 괄호 앞의 종목명 추출
+                        if st.session_state['stock_input_method'] == "목록에서 선택":
+                            stock_name = st.session_state['stock_selection'].split('(')[0].strip()
                         else:
                             stock = yf.Ticker(stock_symbol)
-                            stock_name = stock.info.get('longName', stock_symbol)  # yfinance에서 종목명 가져오기
+                            stock_name = stock.info.get('longName', stock_symbol)
                         
                         st.session_state.summary = analyze_financial_info(financial_info, stock_symbol, stock_name)
                 else:
@@ -465,8 +436,44 @@ if search_button:
             else:
                 st.warning(f"{stock_input}에 해당하는 종목을 찾을 수 없습니다.")
 
+# 세션 상태 초기화
+if 'search_executed' not in st.session_state:
+    st.session_state['search_executed'] = False
+if 'search_results' not in st.session_state:
+    st.session_state['search_results'] = {'videos': [], 'news': [], 'financial_info': {}}
+    st.session_state['total_results'] = 0
+if 'summary' not in st.session_state:
+    st.session_state['summary'] = ""
+
+# Streamlit 앱
+st.markdown('<h1>🤖 금융 AI 서비스 플랫폼 <span style="color:red">AI</span>senet</h1>', unsafe_allow_html=True)
+st.markdown("이 서비스는 선택한 금융 도메인에 대한 YouTube 영상, 뉴스, 그리고 주식 재무정보를 검색하고 AI를 이용해 분석 정보를 제공합니다. 좌측 사이드바에서 검색 조건을 선택하고 검색해보세요.")
+
+# 검색이 실행되지 않았을 때만 이미지 표시
+if not st.session_state['search_executed']:
+    st.image("https://raw.githubusercontent.com/BongwooChoi/AIsenet/main/cover.jpg")
+
+# 사이드바에 검색 조건 배치
+with st.sidebar:
+    st.header("검색 조건")
+    st.session_state['source'] = st.radio("검색할 채널을 선택하세요:", ("YouTube", "뉴스", "재무정보"))
+    source = st.session_state['source']
+    if source in ["YouTube", "뉴스"]:
+        st.session_state['domain'] = st.selectbox("금융 도메인 선택", list(FINANCE_DOMAINS.keys()))
+        st.session_state['additional_query'] = st.text_input("추가 검색어 (선택 사항)", key="additional_query")
+        st.session_state['period'] = st.selectbox("조회 기간", ["모두", "최근 1일", "최근 1주일", "최근 1개월", "최근 3개월", "최근 6개월", "최근 1년"], index=2)
+    else:
+        st.session_state['stock_input_method'] = st.radio("종목 선택 방법", ("목록에서 선택", "직접 입력"))
+        if st.session_state['stock_input_method'] == "목록에서 선택":
+            st.session_state['stock_selection'] = st.selectbox("종목 선택", MAJOR_STOCKS)
+            st.session_state['stock_input'] = st.session_state['stock_selection'].split('(')[1].split(')')[0]
+        else:
+            st.session_state['stock_input'] = st.text_input("종목코드(티커) 직접 입력 (예: AAPL)")
+    st.button("검색 실행", on_click=execute_search)
+
 # 검색 결과 표시
 if st.session_state['search_executed']:
+    source = st.session_state['source']
     if source == "YouTube":
         st.subheader(f"🎦 검색된 YouTube 영상")
         for video in st.session_state.search_results['videos']:
