@@ -7,3 +7,4 @@ plotly
 yfinance
 pandas
 apify_client
+isodate
