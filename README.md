@@ -16,6 +16,7 @@ AIsenet은 선택한 금융 도메인에 대한 YouTube 영상, 뉴스, 그리�
 
 ## 기술 스택
 
+- 개발언어: Python
 - 프레임워크: Streamlit(Pythonn 기반의 웹 애플리케이션 프레임워크)
 - 언어모델(LLM): gemini-1.5-flash-002
 - API:
