@@ -239,7 +239,7 @@ def get_video_info(video_id):
             'comments': comments
         }
     except Exception as e:
-        st.error(f"비디오 정보를 가져오는 중 오류 발생: {str(e)}")
+        pass
         return None
 
 # YouTube 영상 요약 함수
