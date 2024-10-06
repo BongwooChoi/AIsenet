@@ -2,7 +2,7 @@
 
 ![AIsenet Cover](https://raw.githubusercontent.com/BongwooChoi/AIsenet/main/cover.jpg)
 
-AIsenet은 선택한 금융 도메인에 대한 YouTube 영상, 뉴스, 그리고 주식 재무정보를 검색하고 AI를 이용해 분석 정보를 제공하는 서비스입니다.
+AIsenet은 선택한 금융 도메인에 대한 YouTube 영상, 뉴스, 그리고 재무정보를 검색하고 AI를 이용해 요약 및 분석 정보를 제공하는 서비스입니다.
 
 ## 주요 기능
 
