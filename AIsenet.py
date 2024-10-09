@@ -183,7 +183,6 @@ def get_published_after(option):
     else:
         return None  # 이 경우 조회 기간 필터를 사용하지 않음
 
-
 # 자막 가져오기 함수
 def get_video_transcript(video_id):
     try:
@@ -210,24 +209,71 @@ def get_video_transcript(video_id):
 
     return None
 
+
+# 비디오 설명과 댓글 정보 가져오기 함수
+def get_video_info(video_id):
+    try:
+        YOUTUBE_API_KEY = random.choice(YOUTUBE_API_KEYS)
+        youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
+        
+        # 비디오 설명 가져오기
+        video_request = youtube.videos().list(
+            part="snippet",
+            id=video_id
+        )
+        video_response = video_request.execute()
+        description = video_response['items'][0]['snippet']['description'] if video_response['items'] else None
+        
+        # 댓글 가져오기
+        comments_request = youtube.commentThreads().list(
+            part="snippet",
+            videoId=video_id,
+            textFormat="plainText",
+            maxResults=30  # 상위 30개 댓글 가져오기
+        )
+        comments_response = comments_request.execute()
+        comments = [item['snippet']['topLevelComment']['snippet']['textDisplay'] for item in comments_response['items']]
+        
+        return {
+            'description': description,
+            'comments': comments
+        }
+    except Exception as e:
+        pass
+        return None
+
 # YouTube 영상 요약 함수
 def summarize_video(video_id, video_title):
     try:
         transcript = get_video_transcript(video_id)
+        video_info = get_video_info(video_id)
         
-        if not transcript:
-            return "비디오 자막을 가져올 수 없어 요약할 수 없습니다."
+        if not transcript and not video_info:
+            return "비디오 정보를 가져올 수 없어 요약할 수 없습니다."
         
         model = genai.GenerativeModel('gemini-1.5-flash-002')
         
         content = f"제목: {video_title}\n\n"
-        content += f"자막 내용:\n{transcript}\n\n"
         
-        prompt = f"""다음 YouTube 영상의 자막을 바탕으로 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 작성해주세요.
+        if transcript:
+            content += f"자막 내용:\n{transcript}\n\n"
+        
+        if video_info:
+            if video_info.get('description'):
+                content += f"비디오 설명:\n{video_info['description']}\n\n"
+            
+            if video_info.get('comments'):
+                content += "주요 댓글:\n"
+                for comment in video_info['comments']:
+                    content += f"- {comment}\n"
+                content += "\n"
+        
+        prompt = f"""다음 YouTube 영상의 정보를 바탕으로 가독성 있는 한 페이지의 보고서 형태로 요약하세요. 최종 결과는 한국어로 작성해주세요. 자막 내용이 메인 정보이고, 비디오 설명과 주요 댓글은 참고 정보입니다.
 보고서 구조:
 1. 영상 개요
 2. 주요 내용
-3. 결론 및 시사점
+3. 시청자 반응 (댓글 기반)
+4. 결론 및 시사점
 영상 정보:
 {content}"""
         response = model.generate_content(prompt)
@@ -238,6 +284,7 @@ def summarize_video(video_id, video_title):
         return summary
     except Exception as e:
         return f"요약 중 오류가 발생했습니다: {str(e)}"
+
 
 # 뉴스 기사 종합 분석 함수
 def analyze_news_articles(articles):
