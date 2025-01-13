@@ -480,7 +480,7 @@ if st.session_state['search_executed']:
         for video in st.session_state.search_results['videos']:
             col1, col2 = st.columns([1, 2])
             with col1:
-                st.image(video['snippet']['thumbnails']['medium']['url'], use_column_width=True)
+                st.image(video['snippet']['thumbnails']['medium']['url'], use_container_width=True)
             with col2:
                 st.subheader(video['snippet']['title'])
                 st.markdown(f"**채널명:** {video['snippet']['channelTitle']}")
